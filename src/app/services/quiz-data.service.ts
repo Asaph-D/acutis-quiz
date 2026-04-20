@@ -28,20 +28,20 @@ export class QuizDataService {
 
     if (!quizDate) {
       return collectionData(allQ, { idField: 'id' }).pipe(
-        map((items) => items as QuizQuestion[]),
-        map((items) => (items.length ? items : DEFAULT_QUESTIONS))
+        map((items): QuizQuestion[] => items as QuizQuestion[]),
+        map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS))
       );
     }
 
     // On tente d'abord les questions du jour, sinon fallback à "toutes", sinon DEFAULT.
     const dayQ = query(ref, where('quizDate', '==', quizDate), orderBy('order', 'asc'), limit(10));
     return collectionData(dayQ, { idField: 'id' }).pipe(
-      map((items) => items as QuizQuestion[]),
-      switchMap((dayItems) => {
+      map((items): QuizQuestion[] => items as QuizQuestion[]),
+      switchMap((dayItems: QuizQuestion[]) => {
         if (dayItems.length) return of(dayItems);
         return collectionData(allQ, { idField: 'id' }).pipe(
-          map((items) => items as QuizQuestion[]),
-          map((items) => (items.length ? items : DEFAULT_QUESTIONS))
+          map((items): QuizQuestion[] => items as QuizQuestion[]),
+          map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS))
         );
       })
     );
@@ -50,7 +50,7 @@ export class QuizDataService {
   getResults$(): Observable<QuizResult[]> {
     const ref = collection(this.firestore, 'results');
     const q = query(ref, orderBy('createdAt', 'desc'));
-    return collectionData(q, { idField: 'id' }).pipe(map((items) => items as QuizResult[]));
+    return collectionData(q, { idField: 'id' }).pipe(map((items): QuizResult[] => items as QuizResult[]));
   }
 
   addQuestion(question: Omit<QuizQuestion, 'createdAt'>): Promise<void> {
