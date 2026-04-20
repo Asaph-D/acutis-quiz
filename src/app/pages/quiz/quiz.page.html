@@ -15,7 +15,7 @@
       </div>
       <h1 class="font-cinzel text-gold text-xl md:text-2xl leading-tight drop-shadow-lg">Quiz Sacré</h1>
       <p class="font-playfair text-cream/70 text-sm italic mt-1">
-        St Carlo Acutis · Évangile du 20 avril 2026
+        St Carlo Acutis · Évangile du {{ quizDate() }}
       </p>
       <div class="mt-3 flex items-center justify-center gap-2">
         <span class="material-icons-round text-gold/60 text-base">auto_awesome</span>
@@ -25,7 +25,7 @@
     </div>
 
     <!-- Name gate -->
-    <div class="quiz-card p-6 md:p-8 relative overflow-hidden mb-6" *ngIf="!showResults() && !hasName()">
+    <div class="quiz-card p-6 md:p-8 relative overflow-hidden mb-6" *ngIf="!showResults() && !started()">
       <div class="absolute top-0 right-0 w-24 h-24 opacity-10"
            style="background: radial-gradient(circle at top right, var(--gold), transparent 70%);"></div>
       <div class="absolute bottom-0 left-0 w-16 h-16 opacity-10"
@@ -41,6 +41,27 @@
         Il sera enregistré avec ton score dans <span class="text-gold">Firestore › results</span>.
       </p>
 
+      <div class="resume-box mb-4" *ngIf="resumeAvailable()">
+        <div class="flex items-start gap-3">
+          <span class="material-icons-round text-gold/70 mt-0.5">history</span>
+          <div class="min-w-0 flex-1">
+            <div class="text-cream/90 font-lato font-bold text-sm">
+              Une partie est en cours pour <span class="text-gold">{{ resumeName() }}</span>.
+            </div>
+            <div class="text-cream/50 text-xs font-lato mt-1">
+              Reprendre là où tu étais, ou recommencer avec un autre nom.
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-3">
+          <button type="button" class="btn-nav" (click)="discardSaved()">Recommencer</button>
+          <button type="button" class="btn-nav" (click)="resumeSaved()">
+            <span class="material-icons-round">play_arrow</span>
+            Reprendre
+          </button>
+        </div>
+      </div>
+
       <input
         class="name-input"
         type="text"
@@ -54,9 +75,10 @@
       <div class="text-red-300 text-xs mt-2 font-lato" *ngIf="nameTouched() && !hasName()">
         Le nom est obligatoire pour apparaître dans le classement.
       </div>
+      <div class="text-red-300 text-xs mt-2 font-lato" *ngIf="nameError()">{{ nameError() }}</div>
 
       <div class="mt-5 flex justify-end">
-        <button type="button" class="btn-nav" (click)="startQuiz()">
+        <button type="button" class="btn-nav" (click)="startQuiz()" [disabled]="!hasName()">
           <span class="material-icons-round">play_arrow</span>
           Commencer
         </button>
@@ -64,7 +86,7 @@
     </div>
 
     <!-- Progress -->
-    <div class="mb-6" *ngIf="!showResults() && hasName()">
+    <div class="mb-6" *ngIf="!showResults() && started()">
       <div class="flex justify-between items-center mb-2">
         <span class="text-cream/50 text-xs font-lato tracking-wider uppercase">Progression</span>
         <span class="text-gold text-xs font-lato font-bold">{{ doneCount() }} / {{ totalCount() }}</span>
@@ -75,7 +97,7 @@
     </div>
 
     <!-- Step dots -->
-    <div class="flex justify-center gap-2 mb-8 flex-wrap" *ngIf="!showResults() && hasName()">
+    <div class="flex justify-center gap-2 mb-8 flex-wrap" *ngIf="!showResults() && started()">
       <button
         type="button"
         class="step-dot"
@@ -90,7 +112,7 @@
     </div>
 
     <!-- Quiz card -->
-    <div class="quiz-card p-6 md:p-8 relative overflow-hidden" *ngIf="!showResults() && hasName() && currentQuestion() as q">
+    <div class="quiz-card p-6 md:p-8 relative overflow-hidden" *ngIf="!showResults() && started() && currentQuestion() as q">
       <div class="absolute top-0 right-0 w-24 h-24 opacity-10"
            style="background: radial-gradient(circle at top right, var(--gold), transparent 70%);"></div>
       <div class="absolute bottom-0 left-0 w-16 h-16 opacity-10"
@@ -138,7 +160,7 @@
     </div>
 
     <!-- Nav -->
-    <div class="flex justify-between items-center mt-6" *ngIf="!showResults() && hasName()">
+    <div class="flex justify-between items-center mt-6" *ngIf="!showResults() && started()">
       <button type="button" class="btn-nav" (click)="prev()" [disabled]="!canPrev()">
         <span class="material-icons-round text-xl">arrow_back_ios</span>
         Précédent

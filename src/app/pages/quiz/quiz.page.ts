@@ -5,6 +5,7 @@ import { QuizDataService } from '../../services/quiz-data.service';
 import { QuizQuestion } from '../../models/quiz.models';
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
+const LS_VERSION = 1;
 
 @Component({
   standalone: true,
@@ -18,6 +19,8 @@ export class QuizPage {
 
   readonly displayName = signal('');
   readonly nameTouched = signal(false);
+  readonly started = signal(false);
+  readonly nameError = signal<string | null>(null);
 
   readonly questions = signal<QuizQuestion[]>([]);
   readonly current = signal(0);
@@ -27,6 +30,9 @@ export class QuizPage {
   readonly saving = signal(false);
 
   readonly hasName = computed(() => this.displayName().trim().length > 0);
+  readonly quizDate = computed(() => new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+  readonly resumeAvailable = signal(false);
+  readonly resumeName = signal<string | null>(null);
 
   readonly doneCount = computed(() => this.answered().filter(Boolean).length);
   readonly totalCount = computed(() => this.questions().length);
@@ -71,18 +77,108 @@ export class QuizPage {
 
   constructor() {
     effect((onCleanup) => {
-      const sub = this.quizData.getQuestions$().subscribe((qs) => {
-        this.questions.set(qs);
-        this.answers.set(new Array(qs.length).fill(null));
-        this.answered.set(new Array(qs.length).fill(false));
+      const sub = this.quizData.getQuestions$(this.quizDate()).subscribe((qs) => {
+        const limited = qs.slice(0, 10);
+        this.questions.set(limited);
+        this.answers.set(new Array(limited.length).fill(null));
+        this.answered.set(new Array(limited.length).fill(false));
         this.current.set(0);
         this.showResults.set(false);
         this.resultIndex.set(0);
         this.displayName.set('');
         this.nameTouched.set(false);
+        this.started.set(false);
+        this.nameError.set(null);
+        this.resumeAvailable.set(false);
+        this.resumeName.set(null);
+
+        // propose de reprendre si une session locale existe
+        const saved = this.readSavedSession();
+        if (saved) {
+          this.resumeAvailable.set(true);
+          this.resumeName.set(saved.displayName);
+        }
       });
       onCleanup(() => sub.unsubscribe());
     });
+
+    // persistance locale (uniquement quand le quiz est en cours)
+    effect(() => {
+      if (!this.started() || this.showResults()) return;
+      this.persistProgress();
+    });
+  }
+
+  private storageKey(quizDate: string) {
+    return `acutis-quiz:progress:${quizDate}`;
+  }
+
+  private readSavedSession(): SavedSession | null {
+    try {
+      const raw = localStorage.getItem(this.storageKey(this.quizDate()));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as SavedSession;
+      if (!parsed || parsed.v !== LS_VERSION) return null;
+      if (parsed.quizDate !== this.quizDate()) return null;
+      if (!parsed.displayName) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private persistProgress() {
+    const payload: SavedSession = {
+      v: LS_VERSION,
+      quizDate: this.quizDate(),
+      displayName: this.displayName().trim(),
+      started: this.started(),
+      current: this.current(),
+      answers: this.answers(),
+      answered: this.answered()
+    };
+    try {
+      localStorage.setItem(this.storageKey(payload.quizDate), JSON.stringify(payload));
+    } catch {
+      // ignore quota errors
+    }
+  }
+
+  private clearProgress() {
+    try {
+      localStorage.removeItem(this.storageKey(this.quizDate()));
+    } catch {
+      // ignore
+    }
+  }
+
+  resumeSaved() {
+    const saved = this.readSavedSession();
+    if (!saved) {
+      this.resumeAvailable.set(false);
+      this.resumeName.set(null);
+      return;
+    }
+    this.displayName.set(saved.displayName);
+    this.nameTouched.set(true);
+    this.started.set(true);
+    this.current.set(Math.max(0, Math.min((this.totalCount() || 1) - 1, saved.current ?? 0)));
+
+    const len = this.totalCount();
+    const a = (saved.answers ?? []).slice(0, len) as Array<0 | 1 | 2 | 3 | null>;
+    const d = (saved.answered ?? []).slice(0, len) as boolean[];
+    this.answers.set([...a, ...new Array(Math.max(0, len - a.length)).fill(null)]);
+    this.answered.set([...d, ...new Array(Math.max(0, len - d.length)).fill(false)]);
+
+    this.resumeAvailable.set(false);
+    this.resumeName.set(null);
+    this.nameError.set(null);
+  }
+
+  discardSaved() {
+    this.clearProgress();
+    this.resumeAvailable.set(false);
+    this.resumeName.set(null);
   }
 
   letter(i: number) {
@@ -103,19 +199,19 @@ export class QuizPage {
   }
 
   prev() {
-    if (!this.hasName()) return;
+    if (!this.started()) return;
     if (!this.canPrev()) return;
     this.current.update((v) => v - 1);
   }
 
   next() {
-    if (!this.hasName()) return;
+    if (!this.started()) return;
     if (!this.canNext()) return;
     this.current.update((v) => v + 1);
   }
 
   selectAnswer(optIndex: 0 | 1 | 2 | 3) {
-    if (!this.hasName()) return;
+    if (!this.started()) return;
     const idx = this.current();
     if (this.answered()[idx]) return;
 
@@ -146,7 +242,7 @@ export class QuizPage {
   }
 
   async finish() {
-    if (!this.hasName()) return;
+    if (!this.started()) return;
     this.showResults.set(true);
     this.resultIndex.set(0);
 
@@ -156,10 +252,12 @@ export class QuizPage {
     try {
       await this.quizData.saveResult({
         displayName: this.displayName().trim(),
+        quizDate: this.quizDate(),
         total: this.totalCount(),
         score: this.score(),
         answers: this.answers()
       });
+      this.clearProgress();
     } catch {
       // silence: l'UI doit rester fluide même sans permissions
     } finally {
@@ -167,10 +265,19 @@ export class QuizPage {
     }
   }
 
-  startQuiz() {
+  async startQuiz() {
     this.nameTouched.set(true);
-    if (!this.hasName()) return;
-    // nothing else: on déverrouille simplement l'UI des questions
+    this.nameError.set(null);
+    const name = this.displayName().trim();
+    if (!name) return;
+
+    const exists = await this.quizData.displayNameExistsForDate(this.quizDate(), name);
+    if (exists) {
+      this.nameError.set("Ce nom existe déjà aujourd'hui. Choisis-en un autre pour éviter les doublons.");
+      return;
+    }
+
+    this.started.set(true);
   }
 
   restart() {
@@ -180,7 +287,12 @@ export class QuizPage {
     this.current.set(0);
     this.showResults.set(false);
     this.resultIndex.set(0);
+    // Quiz journalier: pour rejouer le même jour, il faut un autre nom
+    this.displayName.set('');
     this.nameTouched.set(false);
+    this.started.set(false);
+    this.nameError.set(null);
+    this.discardSaved();
   }
 
   // Carrousel controls
@@ -207,4 +319,14 @@ export class QuizPage {
     return `${this.letter(a)}) ${q.options[a]}`;
   }
 }
+
+type SavedSession = {
+  v: number;
+  quizDate: string;
+  displayName: string;
+  started: boolean;
+  current: number;
+  answers: Array<0 | 1 | 2 | 3 | null>;
+  answered: boolean[];
+};
 

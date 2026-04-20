@@ -4,23 +4,46 @@ import {
   addDoc,
   collection,
   collectionData,
+  getDocs,
+  doc,
+  limit,
   orderBy,
   query,
-  serverTimestamp
+  serverTimestamp,
+  updateDoc,
+  deleteDoc,
+  where
 } from '@angular/fire/firestore';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of, switchMap } from 'rxjs';
 import { QuizQuestion, QuizResult } from '../models/quiz.models';
 
 @Injectable({ providedIn: 'root' })
 export class QuizDataService {
   constructor(private readonly firestore: Firestore) {}
 
-  getQuestions$(): Observable<QuizQuestion[]> {
+  getQuestions$(quizDate?: string): Observable<QuizQuestion[]> {
     const ref = collection(this.firestore, 'questions');
-    const q = query(ref, orderBy('order', 'asc'));
-    return collectionData(q, { idField: 'id' }).pipe(
+
+    const allQ = query(ref, orderBy('order', 'asc'), limit(10));
+
+    if (!quizDate) {
+      return collectionData(allQ, { idField: 'id' }).pipe(
+        map((items) => items as QuizQuestion[]),
+        map((items) => (items.length ? items : DEFAULT_QUESTIONS))
+      );
+    }
+
+    // On tente d'abord les questions du jour, sinon fallback à "toutes", sinon DEFAULT.
+    const dayQ = query(ref, where('quizDate', '==', quizDate), orderBy('order', 'asc'), limit(10));
+    return collectionData(dayQ, { idField: 'id' }).pipe(
       map((items) => items as QuizQuestion[]),
-      map((items) => (items.length ? items : DEFAULT_QUESTIONS))
+      switchMap((dayItems) => {
+        if (dayItems.length) return of(dayItems);
+        return collectionData(allQ, { idField: 'id' }).pipe(
+          map((items) => items as QuizQuestion[]),
+          map((items) => (items.length ? items : DEFAULT_QUESTIONS))
+        );
+      })
     );
   }
 
@@ -35,9 +58,31 @@ export class QuizDataService {
     return addDoc(ref, { ...question, createdAt: serverTimestamp() }).then(() => undefined);
   }
 
+  updateQuestion(id: string, patch: Partial<Omit<QuizQuestion, 'id'>>): Promise<void> {
+    const ref = doc(this.firestore, 'questions', id);
+    return updateDoc(ref, { ...patch }).then(() => undefined);
+  }
+
+  deleteQuestion(id: string): Promise<void> {
+    const ref = doc(this.firestore, 'questions', id);
+    return deleteDoc(ref).then(() => undefined);
+  }
+
   saveResult(result: Omit<QuizResult, 'createdAt'>): Promise<void> {
     const ref = collection(this.firestore, 'results');
     return addDoc(ref, { ...result, createdAt: serverTimestamp() }).then(() => undefined);
+  }
+
+  async displayNameExistsForDate(quizDate: string, displayName: string): Promise<boolean> {
+    const ref = collection(this.firestore, 'results');
+    const q = query(
+      ref,
+      where('quizDate', '==', quizDate),
+      where('displayName', '==', displayName),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    return !snap.empty;
   }
 }
 

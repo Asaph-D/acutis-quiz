@@ -2,6 +2,7 @@ export type QuizPart = 'carlo' | 'evangile' | 'synthese';
 
 export interface QuizQuestion {
   id?: string;
+  quizDate?: string; // YYYY-MM-DD (quiz du jour)
   part: QuizPart;
   partLabel: string;
   partIcon: string; // material icon name
@@ -15,6 +16,7 @@ export interface QuizQuestion {
 
 export interface QuizResult {
   id?: string;
+  quizDate?: string; // YYYY-MM-DD
   displayName: string;
   total: number;
   score: number;

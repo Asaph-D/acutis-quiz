@@ -7,6 +7,7 @@ import { QuizPart, QuizQuestion } from '../../models/quiz.models';
 import { AuthService } from '../../services/auth.service';
 
 type FormState = {
+  quizDate: string; // YYYY-MM-DD
   part: QuizPart;
   order: number | null;
   question: string;
@@ -27,6 +28,32 @@ export class AdminPage {
   private readonly auth = inject(AuthService);
 
   readonly questions = signal<QuizQuestion[]>([]);
+  readonly search = signal('');
+  readonly showDailyOnly = signal(false);
+  readonly hoveredId = signal<string | null>(null);
+
+  readonly filteredQuestions = computed(() => {
+    const q = this.search().trim().toLowerCase();
+    const dailyOnly = this.showDailyOnly();
+    const day = this.form().quizDate;
+    return this.questions()
+      .filter((item) => (dailyOnly ? item.quizDate === day : true))
+      .filter((item) => {
+        if (!q) return true;
+        const hay = `${item.question} ${item.partLabel} ${item.quizDate ?? ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+  });
+
+  readonly dailyCount = computed(() => {
+    const day = this.form().quizDate;
+    return this.questions().filter((q) => q.quizDate === day).length;
+  });
+
+  // édition inline via modal
+  readonly editModalOpen = signal(false);
+  readonly editId = signal<string | null>(null);
+  readonly editForm = signal<FormState | null>(null);
   readonly saving = signal(false);
   readonly savedFlash = signal(false);
   readonly errorMsg = signal<string | null>(null);
@@ -42,6 +69,7 @@ export class AdminPage {
   readonly nextOrder = computed(() => (this.questions().at(-1)?.order ?? 0) + 1);
 
   readonly form = signal<FormState>({
+    quizDate: new Date().toISOString().slice(0, 10),
     part: 'carlo',
     order: null,
     question: '',
@@ -80,6 +108,10 @@ export class AdminPage {
 
   setPart(part: QuizPart) {
     this.form.set({ ...this.form(), part });
+  }
+
+  setQuizDate(quizDate: string) {
+    this.form.set({ ...this.form(), quizDate });
   }
 
   setOrder(value: string | number | null) {
@@ -139,6 +171,7 @@ export class AdminPage {
     this.saving.set(true);
     try {
       await this.quizData.addQuestion({
+        quizDate: f.quizDate,
         part: f.part,
         partLabel: this.partLabel(f.part),
         partIcon: this.partIcon(f.part),
@@ -150,6 +183,7 @@ export class AdminPage {
       });
 
       this.form.set({
+        quizDate: f.quizDate,
         part: f.part,
         order: null,
         question: '',
@@ -166,6 +200,125 @@ export class AdminPage {
       );
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  openEdit(q: QuizQuestion) {
+    if (!q.id) return;
+    this.editId.set(q.id);
+    this.editForm.set({
+      quizDate: q.quizDate ?? this.form().quizDate,
+      part: q.part,
+      order: q.order ?? null,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation
+    });
+    this.editModalOpen.set(true);
+  }
+
+  closeEdit() {
+    this.editModalOpen.set(false);
+    this.editId.set(null);
+    this.editForm.set(null);
+  }
+
+  updateEdit(patch: Partial<FormState>) {
+    const current = this.editForm();
+    if (!current) return;
+    this.editForm.set({ ...current, ...patch });
+  }
+
+  setEditCorrectIndex(value: unknown) {
+    const current = this.editForm();
+    if (!current) return;
+    const n = Number(value);
+    const v = n as 0 | 1 | 2 | 3;
+    if (v !== 0 && v !== 1 && v !== 2 && v !== 3) return;
+    this.editForm.set({ ...current, correctIndex: v });
+  }
+
+  setEditOption(i: number, value: string) {
+    const current = this.editForm();
+    if (!current) return;
+    const v = i as 0 | 1 | 2 | 3;
+    if (v !== 0 && v !== 1 && v !== 2 && v !== 3) return;
+    const opts: FormState['options'] = [...current.options] as FormState['options'];
+    opts[v] = value;
+    this.editForm.set({ ...current, options: opts });
+  }
+
+  async saveEdit() {
+    if (!this.isLoggedIn()) {
+      this.errorMsg.set("Connecte-toi en admin pour modifier dans Firestore.");
+      return;
+    }
+    const id = this.editId();
+    const f = this.editForm();
+    if (!id || !f) return;
+    const trimmedQuestion = f.question.trim();
+    const trimmedExplanation = f.explanation.trim();
+    const trimmedOptions = f.options.map((o) => o.trim()) as FormState['options'];
+    if (!trimmedQuestion || trimmedOptions.some((o) => !o)) return;
+
+    try {
+      await this.quizData.updateQuestion(id, {
+        quizDate: f.quizDate,
+        part: f.part,
+        partLabel: this.partLabel(f.part),
+        partIcon: this.partIcon(f.part),
+        order: f.order ?? 0,
+        question: trimmedQuestion,
+        options: trimmedOptions,
+        correctIndex: f.correctIndex,
+        explanation: trimmedExplanation || '—'
+      });
+      this.closeEdit();
+    } catch {
+      this.errorMsg.set("Impossible de modifier. Vérifie les Firestore Rules.");
+    }
+  }
+
+  async reuseForCurrentQuiz(q: QuizQuestion) {
+    if (!this.isLoggedIn()) {
+      this.errorMsg.set("Connecte-toi en admin pour réutiliser une question.");
+      return;
+    }
+    const targetDate = this.form().quizDate;
+    const next = this.questions()
+      .filter((x) => x.quizDate === targetDate)
+      .reduce((m, x) => Math.max(m, x.order ?? 0), 0) + 1;
+
+    try {
+      await this.quizData.addQuestion({
+        quizDate: targetDate,
+        part: q.part,
+        partLabel: this.partLabel(q.part),
+        partIcon: this.partIcon(q.part),
+        order: next,
+        question: q.question,
+        options: q.options,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation
+      });
+    } catch {
+      this.errorMsg.set("Impossible de réutiliser. Vérifie les Firestore Rules.");
+    }
+  }
+
+  async deleteQuestion(q: QuizQuestion) {
+    if (!this.isLoggedIn()) {
+      this.errorMsg.set("Connecte-toi en admin pour supprimer.");
+      return;
+    }
+    if (!q.id) return;
+    const ok = window.confirm('Supprimer cette question ?');
+    if (!ok) return;
+    try {
+      await this.quizData.deleteQuestion(q.id);
+    } catch {
+      this.errorMsg.set("Impossible de supprimer. Vérifie les Firestore Rules.");
     }
   }
 

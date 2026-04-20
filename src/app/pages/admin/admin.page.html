@@ -41,6 +41,16 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <label class="field">
+          <div class="field-label">Date du quiz</div>
+          <input
+            class="field-input"
+            type="date"
+            [ngModel]="form().quizDate"
+            (ngModelChange)="setQuizDate($event)"
+          />
+        </label>
+
+        <label class="field">
           <div class="field-label">Partie</div>
           <select class="field-input" [ngModel]="form().part" (ngModelChange)="setPart($event)">
             <option value="carlo">Carlo Acutis</option>
@@ -134,14 +144,44 @@
           <span class="material-icons-round text-gold/70">format_list_numbered</span>
           <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Questions existantes</span>
         </div>
-        <span class="text-cream/50 text-xs font-lato">{{ questions().length }} au total</span>
+        <div class="flex items-center gap-3">
+          <span class="text-cream/50 text-xs font-lato">
+            {{ filteredQuestions().length }} affichées
+            <span class="text-gold/60">•</span>
+            {{ questions().length }} total
+          </span>
+        </div>
+      </div>
+
+      <div class="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <div class="search-wrap flex-1">
+          <span class="material-icons-round text-gold/60 text-lg">search</span>
+          <input
+            class="search-input"
+            type="text"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            placeholder="Rechercher… (texte, partie, date)"
+          />
+        </div>
+
+        <label class="daily-toggle">
+          <input type="checkbox" [ngModel]="showDailyOnly()" (ngModelChange)="showDailyOnly.set(!!$event)" />
+          <span class="toggle-ui"></span>
+          <span class="toggle-label">
+            Questions du jour
+            <span class="text-gold font-bold">{{ dailyCount() }}</span>/10
+          </span>
+        </label>
       </div>
 
       <div class="space-y-3 max-h-[620px] overflow-auto pr-1">
         <div
-          class="p-4 rounded-xl border"
-          *ngFor="let q of questions()"
+          class="question-item p-4 rounded-xl border"
+          *ngFor="let q of filteredQuestions()"
           style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
+          (mouseenter)="hoveredId.set(q.id ?? null)"
+          (mouseleave)="hoveredId.set(null)"
         >
           <div class="flex items-start gap-3">
             <div class="order-chip">{{ q.order }}</div>
@@ -153,8 +193,23 @@
                 <span class="material-icons-round text-gold/60 text-sm">{{ q.partIcon }}</span>
                 {{ q.partLabel }}
                 <span class="text-gold/60">•</span>
+                <span class="text-cream/50">Date :</span>
+                <span class="text-gold/80 font-bold">{{ q.quizDate || '—' }}</span>
+                <span class="text-gold/60">•</span>
                 Bonne réponse : <span class="text-gold font-bold">{{ ['A','B','C','D'][q.correctIndex] }}</span>
               </div>
+            </div>
+
+            <div class="item-actions" [class.visible]="hoveredId() === q.id">
+              <button type="button" class="icon-btn" title="Modifier" (click)="openEdit(q)">
+                <span class="material-icons-round">edit</span>
+              </button>
+              <button type="button" class="icon-btn" title="Réutiliser pour la date sélectionnée" (click)="reuseForCurrentQuiz(q)">
+                <span class="material-icons-round">content_copy</span>
+              </button>
+              <button type="button" class="icon-btn danger" title="Supprimer" (click)="deleteQuestion(q)">
+                <span class="material-icons-round">delete</span>
+              </button>
             </div>
           </div>
         </div>
@@ -163,6 +218,78 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" *ngIf="editModalOpen()">
+  <div class="modal-card quiz-card p-6 md:p-7">
+    <div class="flex items-center justify-between gap-4 mb-4">
+      <div class="flex items-center gap-2">
+        <span class="material-icons-round text-gold/70">edit_note</span>
+        <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Modifier la question</span>
+      </div>
+      <button type="button" class="icon-btn" (click)="closeEdit()" title="Fermer">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+
+    <ng-container *ngIf="editForm() as ef">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="field">
+          <div class="field-label">Date du quiz</div>
+          <input class="field-input" type="date" [ngModel]="ef.quizDate" (ngModelChange)="updateEdit({ quizDate: $event })" />
+        </label>
+        <label class="field">
+          <div class="field-label">Partie</div>
+          <select class="field-input" [ngModel]="ef.part" (ngModelChange)="updateEdit({ part: $event })">
+            <option value="carlo">Carlo Acutis</option>
+            <option value="evangile">Évangile</option>
+            <option value="synthese">Synthèse</option>
+          </select>
+        </label>
+        <label class="field">
+          <div class="field-label">Ordre</div>
+          <input class="field-input" type="number" [ngModel]="ef.order" (ngModelChange)="updateEdit({ order: +$event })" />
+        </label>
+      </div>
+
+      <label class="field mt-4">
+        <div class="field-label">Question</div>
+        <textarea class="field-input min-h-[92px]" [ngModel]="ef.question" (ngModelChange)="updateEdit({ question: $event })"></textarea>
+      </label>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="field" *ngFor="let letter of ['A','B','C','D']; let i = index">
+          <div class="field-label">Option {{ letter }}</div>
+          <input class="field-input" type="text" [ngModel]="ef.options[i]" (ngModelChange)="setEditOption(i, $event)" />
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <label class="field">
+          <div class="field-label">Bonne réponse</div>
+          <select class="field-input" [ngModel]="ef.correctIndex" (ngModelChange)="setEditCorrectIndex($event)">
+            <option [ngValue]="0">A</option>
+            <option [ngValue]="1">B</option>
+            <option [ngValue]="2">C</option>
+            <option [ngValue]="3">D</option>
+          </select>
+        </label>
+        <label class="field">
+          <div class="field-label">Explication</div>
+          <input class="field-input" type="text" [ngModel]="ef.explanation" (ngModelChange)="updateEdit({ explanation: $event })" />
+        </label>
+      </div>
+
+      <div class="flex justify-end mt-5 gap-2">
+        <button type="button" class="btn-nav" (click)="closeEdit()">Annuler</button>
+        <button type="button" class="btn-nav" (click)="saveEdit()">
+          <span class="material-icons-round">save</span>
+          Enregistrer
+        </button>
+      </div>
+    </ng-container>
   </div>
 </div>
 
