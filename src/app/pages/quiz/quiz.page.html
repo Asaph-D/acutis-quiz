@@ -24,8 +24,47 @@
       </div>
     </div>
 
+    <!-- Name gate -->
+    <div class="quiz-card p-6 md:p-8 relative overflow-hidden mb-6" *ngIf="!showResults() && !hasName()">
+      <div class="absolute top-0 right-0 w-24 h-24 opacity-10"
+           style="background: radial-gradient(circle at top right, var(--gold), transparent 70%);"></div>
+      <div class="absolute bottom-0 left-0 w-16 h-16 opacity-10"
+           style="background: radial-gradient(circle at bottom left, var(--sacred), transparent 70%);"></div>
+
+      <div class="flex items-center gap-2 mb-4">
+        <span class="material-icons-round text-gold/70 text-lg">badge</span>
+        <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Avant de commencer</span>
+      </div>
+
+      <h2 class="font-playfair text-cream text-lg md:text-xl leading-snug mb-2">Ton nom (pour le classement)</h2>
+      <p class="font-lato text-cream/60 text-sm mb-4">
+        Il sera enregistré avec ton score dans <span class="text-gold">Firestore › results</span>.
+      </p>
+
+      <input
+        class="name-input"
+        type="text"
+        [ngModel]="displayName()"
+        (ngModelChange)="displayName.set($event)"
+        (blur)="nameTouched.set(true)"
+        placeholder="Ex: Asaph"
+        maxlength="48"
+        autocomplete="name"
+      />
+      <div class="text-red-300 text-xs mt-2 font-lato" *ngIf="nameTouched() && !hasName()">
+        Le nom est obligatoire pour apparaître dans le classement.
+      </div>
+
+      <div class="mt-5 flex justify-end">
+        <button type="button" class="btn-nav" (click)="startQuiz()">
+          <span class="material-icons-round">play_arrow</span>
+          Commencer
+        </button>
+      </div>
+    </div>
+
     <!-- Progress -->
-    <div class="mb-6" *ngIf="!showResults()">
+    <div class="mb-6" *ngIf="!showResults() && hasName()">
       <div class="flex justify-between items-center mb-2">
         <span class="text-cream/50 text-xs font-lato tracking-wider uppercase">Progression</span>
         <span class="text-gold text-xs font-lato font-bold">{{ doneCount() }} / {{ totalCount() }}</span>
@@ -36,7 +75,7 @@
     </div>
 
     <!-- Step dots -->
-    <div class="flex justify-center gap-2 mb-8 flex-wrap" *ngIf="!showResults()">
+    <div class="flex justify-center gap-2 mb-8 flex-wrap" *ngIf="!showResults() && hasName()">
       <button
         type="button"
         class="step-dot"
@@ -51,7 +90,7 @@
     </div>
 
     <!-- Quiz card -->
-    <div class="quiz-card p-6 md:p-8 relative overflow-hidden" *ngIf="!showResults() && currentQuestion() as q">
+    <div class="quiz-card p-6 md:p-8 relative overflow-hidden" *ngIf="!showResults() && hasName() && currentQuestion() as q">
       <div class="absolute top-0 right-0 w-24 h-24 opacity-10"
            style="background: radial-gradient(circle at top right, var(--gold), transparent 70%);"></div>
       <div class="absolute bottom-0 left-0 w-16 h-16 opacity-10"
@@ -99,7 +138,7 @@
     </div>
 
     <!-- Nav -->
-    <div class="flex justify-between items-center mt-6" *ngIf="!showResults()">
+    <div class="flex justify-between items-center mt-6" *ngIf="!showResults() && hasName()">
       <button type="button" class="btn-nav" (click)="prev()" [disabled]="!canPrev()">
         <span class="material-icons-round text-xl">arrow_back_ios</span>
         Précédent

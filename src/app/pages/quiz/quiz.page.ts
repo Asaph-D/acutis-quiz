@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { QuizDataService } from '../../services/quiz-data.service';
 import { QuizQuestion } from '../../models/quiz.models';
 
@@ -8,12 +9,15 @@ const LETTERS = ['A', 'B', 'C', 'D'] as const;
 @Component({
   standalone: true,
   selector: 'app-quiz-page',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './quiz.page.html',
   styleUrl: './quiz.page.sass'
 })
 export class QuizPage {
   private readonly quizData = inject(QuizDataService);
+
+  readonly displayName = signal('');
+  readonly nameTouched = signal(false);
 
   readonly questions = signal<QuizQuestion[]>([]);
   readonly current = signal(0);
@@ -21,6 +25,8 @@ export class QuizPage {
   readonly answered = signal<boolean[]>([]);
   readonly showResults = signal(false);
   readonly saving = signal(false);
+
+  readonly hasName = computed(() => this.displayName().trim().length > 0);
 
   readonly doneCount = computed(() => this.answered().filter(Boolean).length);
   readonly totalCount = computed(() => this.questions().length);
@@ -72,6 +78,8 @@ export class QuizPage {
         this.current.set(0);
         this.showResults.set(false);
         this.resultIndex.set(0);
+        this.displayName.set('');
+        this.nameTouched.set(false);
       });
       onCleanup(() => sub.unsubscribe());
     });
@@ -95,16 +103,19 @@ export class QuizPage {
   }
 
   prev() {
+    if (!this.hasName()) return;
     if (!this.canPrev()) return;
     this.current.update((v) => v - 1);
   }
 
   next() {
+    if (!this.hasName()) return;
     if (!this.canNext()) return;
     this.current.update((v) => v + 1);
   }
 
   selectAnswer(optIndex: 0 | 1 | 2 | 3) {
+    if (!this.hasName()) return;
     const idx = this.current();
     if (this.answered()[idx]) return;
 
@@ -135,6 +146,7 @@ export class QuizPage {
   }
 
   async finish() {
+    if (!this.hasName()) return;
     this.showResults.set(true);
     this.resultIndex.set(0);
 
@@ -143,7 +155,7 @@ export class QuizPage {
     this.saving.set(true);
     try {
       await this.quizData.saveResult({
-        displayName: 'Anonyme',
+        displayName: this.displayName().trim(),
         total: this.totalCount(),
         score: this.score(),
         answers: this.answers()
@@ -155,6 +167,12 @@ export class QuizPage {
     }
   }
 
+  startQuiz() {
+    this.nameTouched.set(true);
+    if (!this.hasName()) return;
+    // nothing else: on déverrouille simplement l'UI des questions
+  }
+
   restart() {
     const qs = this.questions();
     this.answers.set(new Array(qs.length).fill(null));
@@ -162,6 +180,7 @@ export class QuizPage {
     this.current.set(0);
     this.showResults.set(false);
     this.resultIndex.set(0);
+    this.nameTouched.set(false);
   }
 
   // Carrousel controls

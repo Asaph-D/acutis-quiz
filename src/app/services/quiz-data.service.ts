@@ -24,6 +24,12 @@ export class QuizDataService {
     );
   }
 
+  getResults$(): Observable<QuizResult[]> {
+    const ref = collection(this.firestore, 'results');
+    const q = query(ref, orderBy('createdAt', 'desc'));
+    return collectionData(q, { idField: 'id' }).pipe(map((items) => items as QuizResult[]));
+  }
+
   addQuestion(question: Omit<QuizQuestion, 'createdAt'>): Promise<void> {
     const ref = collection(this.firestore, 'questions');
     return addDoc(ref, { ...question, createdAt: serverTimestamp() }).then(() => undefined);

@@ -1,0 +1,219 @@
+<div class="relative z-10 w-full max-w-5xl mx-auto p-4 min-h-screen">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="font-cinzel text-gold text-2xl md:text-3xl drop-shadow-lg">Admin</h1>
+      <p class="font-playfair text-cream/70 italic">Saisie des questions (Firestore: <span class="text-gold">questions</span>)</p>
+    </div>
+
+    <div class="flex gap-2">
+      <a class="btn-nav" href="/quiz">
+        <span class="material-icons-round">quiz</span>
+        Quiz
+      </a>
+      <a class="btn-nav" href="/analytics">
+        <span class="material-icons-round">insights</span>
+        Analytics
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="quiz-card p-5 lg:col-span-2 flex items-center justify-between" *ngIf="isLoggedIn()">
+      <div class="text-cream/70 font-lato text-sm flex items-center gap-2">
+        <span class="material-icons-round text-green-400">verified_user</span>
+        Connecté : <span class="text-gold font-bold">{{ userEmail() }}</span>
+      </div>
+      <button type="button" class="btn-nav" (click)="logout()">
+        <span class="material-icons-round">logout</span>
+        Déconnexion
+      </button>
+    </div>
+
+    <!-- Form -->
+    <div class="quiz-card p-6 md:p-7">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="material-icons-round text-gold/70">edit</span>
+          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Nouvelle question</span>
+        </div>
+        <span class="text-cream/50 text-xs font-lato">Ordre suggéré : <span class="text-gold font-bold">{{ nextOrder() }}</span></span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="field">
+          <div class="field-label">Partie</div>
+          <select class="field-input" [ngModel]="form().part" (ngModelChange)="setPart($event)">
+            <option value="carlo">Carlo Acutis</option>
+            <option value="evangile">Évangile</option>
+            <option value="synthese">Synthèse</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <div class="field-label">Ordre (optionnel)</div>
+          <input
+            class="field-input"
+            type="number"
+            [ngModel]="form().order"
+            (ngModelChange)="setOrder($event)"
+            placeholder="ex: 1"
+            min="1"
+          />
+        </label>
+      </div>
+
+      <label class="field mt-4">
+        <div class="field-label">Question</div>
+        <textarea
+          class="field-input min-h-[92px]"
+          [ngModel]="form().question"
+          (ngModelChange)="setQuestion($event)"
+          placeholder="Tape la question…"
+        ></textarea>
+      </label>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="field" *ngFor="let letter of ['A','B','C','D']; let i = index">
+          <div class="field-label">Option {{ letter }}</div>
+          <input
+            class="field-input"
+            type="text"
+            [ngModel]="form().options[i]"
+            (ngModelChange)="setOption(i, $event)"
+            placeholder="Texte de l'option…"
+          />
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <label class="field">
+          <div class="field-label">Bonne réponse</div>
+          <select
+            class="field-input"
+            [ngModel]="form().correctIndex"
+            (ngModelChange)="setCorrectIndex($event)"
+          >
+            <option [ngValue]="0">A</option>
+            <option [ngValue]="1">B</option>
+            <option [ngValue]="2">C</option>
+            <option [ngValue]="3">D</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <div class="field-label">Explication</div>
+          <input
+            class="field-input"
+            type="text"
+            [ngModel]="form().explanation"
+            (ngModelChange)="setExplanation($event)"
+            placeholder="Jn 6,29… / Ac 6,4…"
+          />
+        </label>
+      </div>
+
+      <div class="mt-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div class="text-xs font-lato">
+          <div class="text-red-300" *ngIf="errorMsg()">{{ errorMsg() }}</div>
+          <div class="text-green-300" *ngIf="savedFlash()">Enregistré.</div>
+          <div class="text-cream/50" *ngIf="!errorMsg() && !savedFlash()">
+            Les participants lisent <span class="text-gold">questions</span>, et les scores vont dans <span class="text-gold">results</span>.
+          </div>
+        </div>
+        <button type="button" class="btn-nav" (click)="submit()" [disabled]="saving() || !isLoggedIn()">
+          <span class="material-icons-round">save</span>
+          {{ saving() ? 'Enregistrement…' : 'Ajouter' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- List preview -->
+    <div class="quiz-card p-6 md:p-7">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="material-icons-round text-gold/70">format_list_numbered</span>
+          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Questions existantes</span>
+        </div>
+        <span class="text-cream/50 text-xs font-lato">{{ questions().length }} au total</span>
+      </div>
+
+      <div class="space-y-3 max-h-[620px] overflow-auto pr-1">
+        <div
+          class="p-4 rounded-xl border"
+          *ngFor="let q of questions()"
+          style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
+        >
+          <div class="flex items-start gap-3">
+            <div class="order-chip">{{ q.order }}</div>
+            <div class="min-w-0 flex-1">
+              <div class="text-cream/90 font-lato font-bold text-sm truncate">
+                {{ q.question }}
+              </div>
+              <div class="text-cream/50 text-xs mt-1 flex items-center gap-2">
+                <span class="material-icons-round text-gold/60 text-sm">{{ q.partIcon }}</span>
+                {{ q.partLabel }}
+                <span class="text-gold/60">•</span>
+                Bonne réponse : <span class="text-gold font-bold">{{ ['A','B','C','D'][q.correctIndex] }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="text-cream/50 text-sm font-playfair italic" *ngIf="questions().length === 0">
+          Aucune question dans Firestore. (Le quiz utilise pour l’instant les 10 questions par défaut.)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Modal -->
+<div class="modal-overlay" *ngIf="authModalOpen() && !isLoggedIn()">
+  <div class="modal-card quiz-card p-6 md:p-7">
+    <div class="flex items-start justify-between gap-4 mb-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="material-icons-round text-gold/70">lock</span>
+          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Connexion admin</span>
+        </div>
+        <div class="font-playfair text-cream text-lg mt-2">Accès requis</div>
+        <div class="text-cream/60 text-sm font-lato mt-1">
+          Pour protéger l’édition, l’écriture dans <span class="text-gold">questions</span> nécessite un compte admin.
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn-google w-full justify-center" (click)="loginWithGoogle()">
+      <span class="material-icons-round">account_circle</span>
+      Se connecter avec Google
+    </button>
+
+    <div class="divider-or my-4">
+      <span>ou</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <label class="field">
+        <div class="field-label">Email</div>
+        <input class="field-input" type="email" [ngModel]="adminEmail()" (ngModelChange)="adminEmail.set($event)" placeholder="admin@..." />
+      </label>
+      <label class="field">
+        <div class="field-label">Mot de passe</div>
+        <input class="field-input" type="password" [ngModel]="adminPassword()" (ngModelChange)="adminPassword.set($event)" placeholder="••••••••" />
+      </label>
+    </div>
+
+    <div class="flex justify-end mt-4">
+      <button type="button" class="btn-nav" (click)="login()">
+        <span class="material-icons-round">login</span>
+        Se connecter
+      </button>
+    </div>
+
+    <div class="text-red-300 text-xs mt-3 font-lato" *ngIf="authError()">{{ authError() }}</div>
+
+    <div class="text-cream/40 text-xs font-lato mt-3">
+      Astuce : active le provider Google dans <span class="text-gold">Firebase Authentication → Sign-in method</span>.
+    </div>
+  </div>
+</div>
+
