@@ -128,6 +128,12 @@ export class QuizPage {
     }
   }
 
+  selectAnswerByIndex(optIndex: number) {
+    const v = optIndex as 0 | 1 | 2 | 3;
+    if (v !== 0 && v !== 1 && v !== 2 && v !== 3) return;
+    this.selectAnswer(v);
+  }
+
   async finish() {
     this.showResults.set(true);
     this.resultIndex.set(0);

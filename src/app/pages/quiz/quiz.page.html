@@ -76,7 +76,7 @@
         [disabled]="answered()[current()]"
         [class.correct]="answered()[current()] && oi === q.correctIndex"
         [class.wrong]="answered()[current()] && answers()[current()] === oi && oi !== q.correctIndex"
-        (click)="selectAnswer(oi as 0|1|2|3)"
+        (click)="selectAnswerByIndex(oi)"
       >
         <div class="letter-badge">{{ letter(oi) }}</div>
         <span class="font-lato text-cream/90 text-sm md:text-base">{{ opt }}</span>
