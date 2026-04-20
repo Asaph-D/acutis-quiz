@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { QuizDataService } from '../../services/quiz-data.service';
 import { QuizQuestion, QuizResult } from '../../models/quiz.models';
@@ -8,7 +9,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   standalone: true,
   selector: 'app-analytics-page',
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './analytics.page.html',
   styleUrl: './analytics.page.sass'
 })

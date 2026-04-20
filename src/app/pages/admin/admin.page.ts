@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { QuizDataService } from '../../services/quiz-data.service';
 import { QuizPart, QuizQuestion } from '../../models/quiz.models';
@@ -19,7 +20,7 @@ type FormState = {
 @Component({
   standalone: true,
   selector: 'app-admin-page',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './admin.page.html',
   styleUrl: './admin.page.sass'
 })
@@ -31,6 +32,8 @@ export class AdminPage {
   readonly search = signal('');
   readonly showDailyOnly = signal(false);
   readonly hoveredId = signal<string | null>(null);
+  readonly editingId = signal<string | null>(null);
+  readonly isEditing = computed(() => !!this.editingId());
 
   readonly filteredQuestions = computed(() => {
     const q = this.search().trim().toLowerCase();
@@ -50,10 +53,6 @@ export class AdminPage {
     return this.questions().filter((q) => q.quizDate === day).length;
   });
 
-  // édition inline via modal
-  readonly editModalOpen = signal(false);
-  readonly editId = signal<string | null>(null);
-  readonly editForm = signal<FormState | null>(null);
   readonly saving = signal(false);
   readonly savedFlash = signal(false);
   readonly errorMsg = signal<string | null>(null);
@@ -170,17 +169,32 @@ export class AdminPage {
 
     this.saving.set(true);
     try {
-      await this.quizData.addQuestion({
-        quizDate: f.quizDate,
-        part: f.part,
-        partLabel: this.partLabel(f.part),
-        partIcon: this.partIcon(f.part),
-        order,
-        question: trimmedQuestion,
-        options: trimmedOptions,
-        correctIndex: f.correctIndex,
-        explanation: trimmedExplanation || '—'
-      });
+      const editingId = this.editingId();
+      if (editingId) {
+        await this.quizData.updateQuestion(editingId, {
+          quizDate: f.quizDate,
+          part: f.part,
+          partLabel: this.partLabel(f.part),
+          partIcon: this.partIcon(f.part),
+          order,
+          question: trimmedQuestion,
+          options: trimmedOptions,
+          correctIndex: f.correctIndex,
+          explanation: trimmedExplanation || '—'
+        });
+      } else {
+        await this.quizData.addQuestion({
+          quizDate: f.quizDate,
+          part: f.part,
+          partLabel: this.partLabel(f.part),
+          partIcon: this.partIcon(f.part),
+          order,
+          question: trimmedQuestion,
+          options: trimmedOptions,
+          correctIndex: f.correctIndex,
+          explanation: trimmedExplanation || '—'
+        });
+      }
 
       this.form.set({
         quizDate: f.quizDate,
@@ -191,6 +205,7 @@ export class AdminPage {
         correctIndex: 0,
         explanation: ''
       });
+      this.editingId.set(null);
 
       this.savedFlash.set(true);
       window.setTimeout(() => this.savedFlash.set(false), 1200);
@@ -205,8 +220,8 @@ export class AdminPage {
 
   openEdit(q: QuizQuestion) {
     if (!q.id) return;
-    this.editId.set(q.id);
-    this.editForm.set({
+    this.editingId.set(q.id);
+    this.form.set({
       quizDate: q.quizDate ?? this.form().quizDate,
       part: q.part,
       order: q.order ?? null,
@@ -215,69 +230,22 @@ export class AdminPage {
       correctIndex: q.correctIndex,
       explanation: q.explanation
     });
-    this.editModalOpen.set(true);
+    this.errorMsg.set(null);
+    this.savedFlash.set(false);
   }
 
-  closeEdit() {
-    this.editModalOpen.set(false);
-    this.editId.set(null);
-    this.editForm.set(null);
-  }
-
-  updateEdit(patch: Partial<FormState>) {
-    const current = this.editForm();
-    if (!current) return;
-    this.editForm.set({ ...current, ...patch });
-  }
-
-  setEditCorrectIndex(value: unknown) {
-    const current = this.editForm();
-    if (!current) return;
-    const n = Number(value);
-    const v = n as 0 | 1 | 2 | 3;
-    if (v !== 0 && v !== 1 && v !== 2 && v !== 3) return;
-    this.editForm.set({ ...current, correctIndex: v });
-  }
-
-  setEditOption(i: number, value: string) {
-    const current = this.editForm();
-    if (!current) return;
-    const v = i as 0 | 1 | 2 | 3;
-    if (v !== 0 && v !== 1 && v !== 2 && v !== 3) return;
-    const opts: FormState['options'] = [...current.options] as FormState['options'];
-    opts[v] = value;
-    this.editForm.set({ ...current, options: opts });
-  }
-
-  async saveEdit() {
-    if (!this.isLoggedIn()) {
-      this.errorMsg.set("Connecte-toi en admin pour modifier dans Firestore.");
-      return;
-    }
-    const id = this.editId();
-    const f = this.editForm();
-    if (!id || !f) return;
-    const trimmedQuestion = f.question.trim();
-    const trimmedExplanation = f.explanation.trim();
-    const trimmedOptions = f.options.map((o) => o.trim()) as FormState['options'];
-    if (!trimmedQuestion || trimmedOptions.some((o) => !o)) return;
-
-    try {
-      await this.quizData.updateQuestion(id, {
-        quizDate: f.quizDate,
-        part: f.part,
-        partLabel: this.partLabel(f.part),
-        partIcon: this.partIcon(f.part),
-        order: f.order ?? 0,
-        question: trimmedQuestion,
-        options: trimmedOptions,
-        correctIndex: f.correctIndex,
-        explanation: trimmedExplanation || '—'
-      });
-      this.closeEdit();
-    } catch {
-      this.errorMsg.set("Impossible de modifier. Vérifie les Firestore Rules.");
-    }
+  cancelEdit() {
+    const day = this.form().quizDate;
+    this.editingId.set(null);
+    this.form.set({
+      quizDate: day,
+      part: 'carlo',
+      order: null,
+      question: '',
+      options: ['', '', '', ''],
+      correctIndex: 0,
+      explanation: ''
+    });
   }
 
   async reuseForCurrentQuiz(q: QuizQuestion) {

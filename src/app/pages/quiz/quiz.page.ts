@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { QuizDataService } from '../../services/quiz-data.service';
 import { QuizQuestion } from '../../models/quiz.models';
 
@@ -16,6 +17,7 @@ const LS_VERSION = 1;
 })
 export class QuizPage {
   private readonly quizData = inject(QuizDataService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly displayName = signal('');
   readonly nameTouched = signal(false);
@@ -30,7 +32,7 @@ export class QuizPage {
   readonly saving = signal(false);
 
   readonly hasName = computed(() => this.displayName().trim().length > 0);
-  readonly quizDate = computed(() => new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+  readonly quizDate = signal(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
   readonly resumeAvailable = signal(false);
   readonly resumeName = signal<string | null>(null);
 
@@ -76,6 +78,15 @@ export class QuizPage {
   readonly resultTrackTransform = computed(() => `translateX(-${this.resultIndex() * 100}%)`);
 
   constructor() {
+    // Tag (date) pilotable par URL: /quiz?date=YYYY-MM-DD
+    effect((onCleanup) => {
+      const sub = this.route.queryParamMap.subscribe((pm) => {
+        const d = pm.get('date');
+        if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) this.quizDate.set(d);
+      });
+      onCleanup(() => sub.unsubscribe());
+    });
+
     effect((onCleanup) => {
       const sub = this.quizData.getQuestions$(this.quizDate()).subscribe((qs) => {
         const limited = qs.slice(0, 10);
@@ -271,8 +282,10 @@ export class QuizPage {
     const name = this.displayName().trim();
     if (!name) return;
 
-    const exists = await this.quizData.displayNameExistsForDate(this.quizDate(), name);
-    if (exists) {
+    // Réservation du nom sans lecture (compatible rules publiques)
+    try {
+      await this.quizData.reserveDisplayName(this.quizDate(), name);
+    } catch {
       this.nameError.set("Ce nom existe déjà aujourd'hui. Choisis-en un autre pour éviter les doublons.");
       return;
     }

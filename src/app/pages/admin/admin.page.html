@@ -6,11 +6,11 @@
     </div>
 
     <div class="flex gap-2">
-      <a class="btn-nav" href="/quiz">
+      <a class="btn-nav" routerLink="/quiz">
         <span class="material-icons-round">quiz</span>
         Quiz
       </a>
-      <a class="btn-nav" href="/analytics">
+      <a class="btn-nav" routerLink="/analytics">
         <span class="material-icons-round">insights</span>
         Analytics
       </a>
@@ -34,7 +34,9 @@
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
           <span class="material-icons-round text-gold/70">edit</span>
-          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Nouvelle question</span>
+          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">
+            {{ isEditing() ? 'Modifier la question' : 'Nouvelle question' }}
+          </span>
         </div>
         <span class="text-cream/50 text-xs font-lato">Ordre suggéré : <span class="text-gold font-bold">{{ nextOrder() }}</span></span>
       </div>
@@ -130,10 +132,15 @@
             Les participants lisent <span class="text-gold">questions</span>, et les scores vont dans <span class="text-gold">results</span>.
           </div>
         </div>
-        <button type="button" class="btn-nav" (click)="submit()" [disabled]="saving() || !isLoggedIn()">
-          <span class="material-icons-round">save</span>
-          {{ saving() ? 'Enregistrement…' : 'Ajouter' }}
-        </button>
+        <div class="flex gap-2">
+          <button type="button" class="btn-nav" *ngIf="isEditing()" (click)="cancelEdit()">
+            Annuler
+          </button>
+          <button type="button" class="btn-nav" (click)="submit()" [disabled]="saving() || !isLoggedIn()">
+            <span class="material-icons-round">save</span>
+            {{ saving() ? 'Enregistrement…' : (isEditing() ? 'Enregistrer' : 'Ajouter') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -218,78 +225,6 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- Edit Modal -->
-<div class="modal-overlay" *ngIf="editModalOpen()">
-  <div class="modal-card quiz-card p-6 md:p-7">
-    <div class="flex items-center justify-between gap-4 mb-4">
-      <div class="flex items-center gap-2">
-        <span class="material-icons-round text-gold/70">edit_note</span>
-        <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Modifier la question</span>
-      </div>
-      <button type="button" class="icon-btn" (click)="closeEdit()" title="Fermer">
-        <span class="material-icons-round">close</span>
-      </button>
-    </div>
-
-    <ng-container *ngIf="editForm() as ef">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label class="field">
-          <div class="field-label">Date du quiz</div>
-          <input class="field-input" type="date" [ngModel]="ef.quizDate" (ngModelChange)="updateEdit({ quizDate: $event })" />
-        </label>
-        <label class="field">
-          <div class="field-label">Partie</div>
-          <select class="field-input" [ngModel]="ef.part" (ngModelChange)="updateEdit({ part: $event })">
-            <option value="carlo">Carlo Acutis</option>
-            <option value="evangile">Évangile</option>
-            <option value="synthese">Synthèse</option>
-          </select>
-        </label>
-        <label class="field">
-          <div class="field-label">Ordre</div>
-          <input class="field-input" type="number" [ngModel]="ef.order" (ngModelChange)="updateEdit({ order: +$event })" />
-        </label>
-      </div>
-
-      <label class="field mt-4">
-        <div class="field-label">Question</div>
-        <textarea class="field-input min-h-[92px]" [ngModel]="ef.question" (ngModelChange)="updateEdit({ question: $event })"></textarea>
-      </label>
-
-      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label class="field" *ngFor="let letter of ['A','B','C','D']; let i = index">
-          <div class="field-label">Option {{ letter }}</div>
-          <input class="field-input" type="text" [ngModel]="ef.options[i]" (ngModelChange)="setEditOption(i, $event)" />
-        </label>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <label class="field">
-          <div class="field-label">Bonne réponse</div>
-          <select class="field-input" [ngModel]="ef.correctIndex" (ngModelChange)="setEditCorrectIndex($event)">
-            <option [ngValue]="0">A</option>
-            <option [ngValue]="1">B</option>
-            <option [ngValue]="2">C</option>
-            <option [ngValue]="3">D</option>
-          </select>
-        </label>
-        <label class="field">
-          <div class="field-label">Explication</div>
-          <input class="field-input" type="text" [ngModel]="ef.explanation" (ngModelChange)="updateEdit({ explanation: $event })" />
-        </label>
-      </div>
-
-      <div class="flex justify-end mt-5 gap-2">
-        <button type="button" class="btn-nav" (click)="closeEdit()">Annuler</button>
-        <button type="button" class="btn-nav" (click)="saveEdit()">
-          <span class="material-icons-round">save</span>
-          Enregistrer
-        </button>
-      </div>
-    </ng-container>
   </div>
 </div>
 

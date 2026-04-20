@@ -1,25 +1,34 @@
 import { Injectable } from '@angular/core';
+import { EnvironmentInjector, runInInjectionContext } from '@angular/core';
 import {
-  Firestore,
   addDoc,
   collection,
   collectionData,
+  Firestore,
   getDocs,
   doc,
   limit,
   orderBy,
   query,
+  setDoc,
   serverTimestamp,
   updateDoc,
   deleteDoc,
   where
 } from '@angular/fire/firestore';
-import { Observable, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, map, of, switchMap } from 'rxjs';
 import { QuizQuestion, QuizResult } from '../models/quiz.models';
 
 @Injectable({ providedIn: 'root' })
 export class QuizDataService {
-  constructor(private readonly firestore: Firestore) {}
+  constructor(
+    private readonly firestore: Firestore,
+    private readonly injector: EnvironmentInjector
+  ) {}
+
+  private inCtx<T>(fn: () => T): T {
+    return runInInjectionContext(this.injector, fn);
+  }
 
   getQuestions$(quizDate?: string): Observable<QuizQuestion[]> {
     const ref = collection(this.firestore, 'questions');
@@ -27,23 +36,29 @@ export class QuizDataService {
     const allQ = query(ref, orderBy('order', 'asc'), limit(10));
 
     if (!quizDate) {
-      return collectionData(allQ, { idField: 'id' }).pipe(
+      return this.inCtx(() => collectionData(allQ, { idField: 'id' })).pipe(
         map((items): QuizQuestion[] => items as QuizQuestion[]),
-        map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS))
+        map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS)),
+        catchError(() => of(DEFAULT_QUESTIONS))
       );
     }
 
     // On tente d'abord les questions du jour, sinon fallback à "toutes", sinon DEFAULT.
     const dayQ = query(ref, where('quizDate', '==', quizDate), orderBy('order', 'asc'), limit(10));
-    return collectionData(dayQ, { idField: 'id' }).pipe(
+    const all$ = () =>
+      this.inCtx(() => collectionData(allQ, { idField: 'id' })).pipe(
+        map((items): QuizQuestion[] => items as QuizQuestion[]),
+        map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS)),
+        catchError(() => of(DEFAULT_QUESTIONS))
+      );
+
+    return this.inCtx(() => collectionData(dayQ, { idField: 'id' })).pipe(
       map((items): QuizQuestion[] => items as QuizQuestion[]),
       switchMap((dayItems: QuizQuestion[]) => {
         if (dayItems.length) return of(dayItems);
-        return collectionData(allQ, { idField: 'id' }).pipe(
-          map((items): QuizQuestion[] => items as QuizQuestion[]),
-          map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS))
-        );
-      })
+        return all$();
+      }),
+      catchError(() => all$())
     );
   }
 
@@ -81,9 +96,37 @@ export class QuizDataService {
       where('displayName', '==', displayName),
       limit(1)
     );
-    const snap = await getDocs(q);
+    const snap = await this.inCtx(() => getDocs(q));
     return !snap.empty;
   }
+
+  /**
+   * Réserve un nom pour une date sans aucune lecture (compatible rules publiques).
+   * Implémentation: setDoc sur un doc-id déterministe. Si le doc existe déjà,
+   * setDoc devient un "update" -> doit être refusé par les rules (allow update: false).
+   */
+  async reserveDisplayName(quizDate: string, displayName: string): Promise<void> {
+    const key = normalizeDisplayName(displayName);
+    const id = `${quizDate}__${key}`;
+    const ref = doc(this.firestore, 'name_locks', id);
+    await this.inCtx(() =>
+      setDoc(ref, {
+        quizDate,
+        displayName: displayName.trim(),
+        createdAt: serverTimestamp()
+      })
+    );
+  }
+}
+
+function normalizeDisplayName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[^a-z0-9\u00C0-\u024F ]/g, '') // garde lettres latines (accents) + chiffres + espaces
+    .replace(/\s+/g, '-')
+    .slice(0, 48);
 }
 
 const DEFAULT_QUESTIONS: QuizQuestion[] = [
