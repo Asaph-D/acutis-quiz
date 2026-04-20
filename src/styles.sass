@@ -1,1 +1,36 @@
-/* You can add global styles to this file, and also import other style files */
+@tailwind base
+@tailwind components
+@tailwind utilities
+
+:root
+  --gold: #C9963A
+  --gold-light: #E8C36A
+  --gold-dark: #8B6520
+  --heaven: #1A3A5C
+  --heaven-light: #2A5A8C
+  --heaven-dark: #0D1F30
+  --cream: #F8F3E8
+  --cream-warm: #EDE4CF
+  --sacred: #7B2D8B
+
+*
+  box-sizing: border-box
+
+html, body
+  height: 100%
+
+body
+  background: linear-gradient(135deg, #0D1F30 0%, #1A3A5C 40%, #2D1B4E 80%, #0D1F30 100%)
+  background-size: 400% 400%
+  animation: shimmer 8s ease infinite
+  min-height: 100vh
+  font-family: 'Lato', sans-serif
+  overflow-x: hidden
+
+body::before
+  content: ''
+  position: fixed
+  inset: 0
+  pointer-events: none
+  z-index: 0
+  background-image: radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.6) 0%, transparent 100%), radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.4) 0%, transparent 100%), radial-gradient(1.5px 1.5px at 55% 15%, rgba(255,255,255,0.7) 0%, transparent 100%), radial-gradient(1px 1px at 70% 80%, rgba(255,255,255,0.5) 0%, transparent 100%), radial-gradient(1px 1px at 85% 35%, rgba(255,255,255,0.4) 0%, transparent 100%), radial-gradient(1.5px 1.5px at 20% 85%, rgba(255,255,255,0.3) 0%, transparent 100%), radial-gradient(1px 1px at 92% 70%, rgba(255,255,255,0.6) 0%, transparent 100%), radial-gradient(1px 1px at 45% 45%, rgba(201,150,58,0.4) 0%, transparent 100%), radial-gradient(1px 1px at 65% 55%, rgba(255,255,255,0.3) 0%, transparent 100%), radial-gradient(1px 1px at 5% 50%, rgba(255,255,255,0.4) 0%, transparent 100%)

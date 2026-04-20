@@ -1,0 +1,228 @@
+<div class="relative z-10 w-full max-w-2xl mx-auto p-4 min-h-screen flex items-center justify-center">
+  <div class="w-full">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="relative inline-block mb-4">
+        <div class="relative w-20 h-20 mx-auto">
+          <div class="halo-ring"></div>
+          <img
+            src="assets/St-Carlo-Acutis.jpg"
+            alt="St Carlo Acutis"
+            class="w-20 h-20 rounded-full object-cover border-2 border-gold shadow-lg"
+            style="box-shadow: 0 0 24px rgba(201,150,58,0.5)"
+          />
+        </div>
+      </div>
+      <h1 class="font-cinzel text-gold text-xl md:text-2xl leading-tight drop-shadow-lg">Quiz Sacré</h1>
+      <p class="font-playfair text-cream/70 text-sm italic mt-1">
+        St Carlo Acutis · Évangile du 20 avril 2026
+      </p>
+      <div class="mt-3 flex items-center justify-center gap-2">
+        <span class="material-icons-round text-gold/60 text-base">auto_awesome</span>
+        <span class="text-cream/40 text-xs font-lato tracking-widest uppercase">{{ totalCount() }} Questions</span>
+        <span class="material-icons-round text-gold/60 text-base">auto_awesome</span>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="mb-6" *ngIf="!showResults()">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-cream/50 text-xs font-lato tracking-wider uppercase">Progression</span>
+        <span class="text-gold text-xs font-lato font-bold">{{ doneCount() }} / {{ totalCount() }}</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="progressPct()"></div>
+      </div>
+    </div>
+
+    <!-- Step dots -->
+    <div class="flex justify-center gap-2 mb-8 flex-wrap" *ngIf="!showResults()">
+      <button
+        type="button"
+        class="step-dot"
+        *ngFor="let _ of questions(); let i = index"
+        [class.done]="answered()[i]"
+        [class.active]="current() === i"
+        (click)="goTo(i)"
+        [attr.aria-label]="'Aller à la question ' + (i + 1)"
+      >
+        {{ i + 1 }}
+      </button>
+    </div>
+
+    <!-- Quiz card -->
+    <div class="quiz-card p-6 md:p-8 relative overflow-hidden" *ngIf="!showResults() && currentQuestion() as q">
+      <div class="absolute top-0 right-0 w-24 h-24 opacity-10"
+           style="background: radial-gradient(circle at top right, var(--gold), transparent 70%);"></div>
+      <div class="absolute bottom-0 left-0 w-16 h-16 opacity-10"
+           style="background: radial-gradient(circle at bottom left, var(--sacred), transparent 70%);"></div>
+
+      <div class="flex items-center gap-2 mb-4">
+        <span class="material-icons-round text-gold/70 text-lg">{{ q.partIcon }}</span>
+        <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">{{ q.partLabel }}</span>
+      </div>
+
+      <div class="flex items-start gap-3 mb-6">
+        <span class="font-cinzel text-gold/40 text-4xl leading-none font-bold select-none">
+          {{ (current() + 1).toString().padStart(2, '0') }}
+        </span>
+        <h2 class="font-playfair text-cream text-lg md:text-xl leading-snug pt-1">{{ q.question }}</h2>
+      </div>
+
+      <button
+        type="button"
+        class="option-btn flex items-center gap-3 p-4 mb-3"
+        *ngFor="let opt of q.options; let oi = index"
+        [disabled]="answered()[current()]"
+        [class.correct]="answered()[current()] && oi === q.correctIndex"
+        [class.wrong]="answered()[current()] && answers()[current()] === oi && oi !== q.correctIndex"
+        (click)="selectAnswer(oi as 0|1|2|3)"
+      >
+        <div class="letter-badge">{{ letter(oi) }}</div>
+        <span class="font-lato text-cream/90 text-sm md:text-base">{{ opt }}</span>
+        <span
+          class="material-icons-round ml-auto text-xl"
+          *ngIf="answered()[current()] && oi === q.correctIndex"
+          style="color:#22c55e"
+        >check_circle</span>
+        <span
+          class="material-icons-round ml-auto text-xl"
+          *ngIf="answered()[current()] && answers()[current()] === oi && oi !== q.correctIndex"
+          style="color:#ef4444"
+        >cancel</span>
+      </button>
+
+      <div class="explanation-box" *ngIf="answered()[current()]">
+        <span class="material-icons-round text-gold/70 text-sm align-middle mr-1">lightbulb</span>
+        {{ q.explanation }}
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <div class="flex justify-between items-center mt-6" *ngIf="!showResults()">
+      <button type="button" class="btn-nav" (click)="prev()" [disabled]="!canPrev()">
+        <span class="material-icons-round text-xl">arrow_back_ios</span>
+        Précédent
+      </button>
+      <button
+        type="button"
+        class="btn-nav"
+        (click)="canNext() ? next() : finish()"
+        [disabled]="totalCount() === 0"
+      >
+        <ng-container *ngIf="canNext(); else resultsLabel">
+          Suivant
+          <span class="material-icons-round text-xl">arrow_forward_ios</span>
+        </ng-container>
+        <ng-template #resultsLabel>
+          <span class="material-icons-round text-xl">emoji_events</span>
+          Résultats
+        </ng-template>
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div class="quiz-card p-8 text-center relative overflow-hidden" *ngIf="showResults()">
+      <div class="absolute inset-0 opacity-10" style="background: radial-gradient(circle at 50% 30%, var(--gold), transparent 60%);"></div>
+      <div class="relative z-10">
+        <div class="flex justify-center mb-6">
+          <div class="score-ring">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10" />
+              <circle
+                cx="70"
+                cy="70"
+                r="58"
+                fill="none"
+                stroke="url(#goldGrad)"
+                stroke-width="10"
+                stroke-linecap="round"
+                stroke-dasharray="364"
+                [attr.stroke-dashoffset]="364 - (364 * (score() / (totalCount() || 1)))"
+                style="transition: stroke-dashoffset 1.2s cubic-bezier(.22,.68,0,1.2)"
+              />
+              <defs>
+                <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#8B6520" />
+                  <stop offset="50%" stop-color="#C9963A" />
+                  <stop offset="100%" stop-color="#E8C36A" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="score-ring-label">
+              <span class="font-cinzel text-3xl text-gold font-bold">{{ score() }}</span>
+              <span class="text-cream/50 text-xs font-lato">/{{ totalCount() }}</span>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="font-cinzel text-gold text-2xl mb-2">{{ resultTitle() }}</h2>
+        <p class="font-playfair text-cream/70 italic text-base mb-6">{{ resultMsg() }}</p>
+
+        <!-- Carrousel -->
+        <div class="relative mb-6 text-left">
+          <div class="overflow-hidden">
+            <div class="flex transition-transform duration-500" [style.transform]="resultTrackTransform()">
+              <div class="min-w-full px-1" *ngFor="let q of questions(); let i = index">
+                <div
+                  class="p-4 rounded-xl"
+                  [style.background]="'rgba(' + (isCorrect(i) ? '34,197,94' : '239,68,68') + ',0.1)'"
+                  [style.border]="'1px solid rgba(' + (isCorrect(i) ? '34,197,94' : '239,68,68') + ',0.25)'"
+                >
+                  <div class="flex items-start gap-3 mb-2">
+                    <span class="material-icons-round text-lg mt-0.5" [style.color]="isCorrect(i) ? '#22c55e' : '#ef4444'">
+                      {{ isCorrect(i) ? 'check_circle' : 'cancel' }}
+                    </span>
+                    <div class="text-cream font-bold font-lato">Question {{ i + 1 }}</div>
+                  </div>
+
+                  <div class="text-cream/80 text-sm mb-2 font-playfair">{{ q.question }}</div>
+
+                  <div class="text-xs text-cream/60 font-lato">
+                    <ng-container *ngIf="isCorrect(i); else wrongTpl">Bonne réponse</ng-container>
+                    <ng-template #wrongTpl>Ta réponse : {{ chosenLabel(i) }}</ng-template>
+                  </div>
+
+                  <div class="explanation-box mt-3">{{ q.explanation }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-between mt-4">
+            <button type="button" class="btn-nav" (click)="slideResult(-1)" [disabled]="resultIndex() === 0">
+              <span class="material-icons-round">chevron_left</span>
+              Précédent
+            </button>
+            <button
+              type="button"
+              class="btn-nav"
+              (click)="slideResult(1)"
+              [disabled]="resultIndex() >= totalCount() - 1"
+            >
+              Suivant
+              <span class="material-icons-round">chevron_right</span>
+            </button>
+          </div>
+
+          <div class="flex justify-center gap-2 mt-4 flex-wrap">
+            <button
+              type="button"
+              *ngFor="let _ of questions(); let i = index"
+              class="carousel-dot"
+              [class.active]="resultIndex() === i"
+              (click)="goToResult(i)"
+              [attr.aria-label]="'Voir correction question ' + (i + 1)"
+            ></button>
+          </div>
+        </div>
+
+        <button type="button" (click)="restart()" class="btn-nav mx-auto justify-center">
+          <span class="material-icons-round">replay</span>
+          Recommencer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
