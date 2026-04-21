@@ -148,7 +148,6 @@ export class QuizDataService {
     quizDate: string,
     result: Omit<QuizResult, 'createdAt' | 'id' | 'quizDate'>
   ): Promise<void> {
-    await this.ensureQuizDoc(quizDate);
     const ref = this.resultsRef(quizDate);
     await this.inCtx(() => addDoc(ref, { ...result, createdAt: serverTimestamp() })).then(() => undefined);
   }
