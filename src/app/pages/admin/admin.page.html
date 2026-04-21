@@ -2,7 +2,7 @@
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
     <div>
       <h1 class="font-cinzel text-gold text-2xl md:text-3xl drop-shadow-lg">Admin</h1>
-      <p class="font-playfair text-cream/70 italic">Saisie des questions (Firestore: <span class="text-gold">quizzes/[date]/questions</span>)</p>
+      <p class="font-playfair text-cream/70 italic">Saisie des questions</p>
     </div>
 
     <div class="flex gap-2 items-center">
@@ -167,7 +167,7 @@
           <div class="text-red-300" *ngIf="errorMsg()">{{ errorMsg() }}</div>
           <div class="text-green-300" *ngIf="savedFlash()">Enregistré.</div>
           <div class="text-cream/50" *ngIf="!errorMsg() && !savedFlash()">
-            Les participants lisent <span class="text-gold">questions</span>, et les scores vont dans <span class="text-gold">results</span>.
+            Les participants verront ces questions dans le quiz.
           </div>
         </div>
         <div class="flex gap-2">
@@ -222,43 +222,87 @@
 
       <div class="scroll-fade">
         <div class="scroll-area space-y-3 max-h-[620px] overflow-auto">
-        <div
-          class="question-item p-4 rounded-xl border"
-          *ngFor="let q of filteredQuestions()"
-          style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
-        >
-          <div class="flex items-start gap-3">
-            <div class="order-chip">{{ q.order }}</div>
-            <div class="min-w-0 flex-1">
-              <div class="text-cream/90 font-lato font-bold text-sm truncate">
-                {{ q.question }}
+        <ng-container *ngIf="showDailyOnly(); else globalGrouped">
+          <div
+            class="question-item p-4 rounded-xl border"
+            *ngFor="let q of filteredQuestions()"
+            style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
+          >
+            <div class="flex items-start gap-3">
+              <div class="order-chip">{{ q.order }}</div>
+              <div class="min-w-0 flex-1">
+                <div class="text-cream/90 font-lato font-bold text-sm truncate">
+                  {{ q.question }}
+                </div>
+                <div class="text-cream/50 text-xs mt-1 flex items-center gap-2">
+                  <span class="material-icons-round text-gold/60 text-sm">{{ q.partIcon }}</span>
+                  {{ q.partLabel }}
+                  <span class="text-gold/60">•</span>
+                  <span class="text-cream/50">Date :</span>
+                  <span class="text-gold/80 font-bold">{{ q.quizDate || '—' }}</span>
+                  <span class="text-gold/60">•</span>
+                  Bonne réponse : <span class="text-gold font-bold">{{ ['A','B','C','D'][q.correctIndex] }}</span>
+                </div>
               </div>
-              <div class="text-cream/50 text-xs mt-1 flex items-center gap-2">
-                <span class="material-icons-round text-gold/60 text-sm">{{ q.partIcon }}</span>
-                {{ q.partLabel }}
-                <span class="text-gold/60">•</span>
-                <span class="text-cream/50">Date :</span>
-                <span class="text-gold/80 font-bold">{{ q.quizDate || '—' }}</span>
-                <span class="text-gold/60">•</span>
-                Bonne réponse : <span class="text-gold font-bold">{{ ['A','B','C','D'][q.correctIndex] }}</span>
-              </div>
-            </div>
 
-            <div class="item-actions">
-              <button type="button" class="icon-btn" title="Modifier" (click)="openEdit(q)">
-                <span class="material-icons-round">edit</span>
-              </button>
-              <button type="button" class="icon-btn" title="Réutiliser pour la date sélectionnée" (click)="reuseForCurrentQuiz(q)">
-                <span class="material-icons-round">content_copy</span>
-              </button>
-              <button type="button" class="icon-btn danger" title="Supprimer" (click)="deleteQuestion(q)">
-                <span class="material-icons-round">delete</span>
-              </button>
+              <div class="item-actions">
+                <button type="button" class="icon-btn" title="Modifier" (click)="openEdit(q)">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button type="button" class="icon-btn" title="Réutiliser pour la date sélectionnée" (click)="reuseForCurrentQuiz(q)">
+                  <span class="material-icons-round">content_copy</span>
+                </button>
+                <button type="button" class="icon-btn danger" title="Supprimer" (click)="deleteQuestion(q)">
+                  <span class="material-icons-round">delete</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ng-container>
+
+        <ng-template #globalGrouped>
+          <div class="space-y-4" *ngFor="let g of filteredGlobalGroups()">
+            <div class="text-cream/60 text-xs font-lato tracking-widest uppercase">
+              Date : <span class="text-gold font-bold">{{ g.quizDate }}</span>
+            </div>
+
+            <div
+              class="question-item p-4 rounded-xl border"
+              *ngFor="let q of g.items"
+              style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
+            >
+              <div class="flex items-start gap-3">
+                <div class="order-chip">{{ q.order }}</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-cream/90 font-lato font-bold text-sm truncate">
+                    {{ q.question }}
+                  </div>
+                  <div class="text-cream/50 text-xs mt-1 flex items-center gap-2">
+                    <span class="material-icons-round text-gold/60 text-sm">{{ q.partIcon }}</span>
+                    {{ q.partLabel }}
+                    <span class="text-gold/60">•</span>
+                    Bonne réponse : <span class="text-gold font-bold">{{ ['A','B','C','D'][q.correctIndex] }}</span>
+                  </div>
+                </div>
+
+                <div class="item-actions">
+                  <button type="button" class="icon-btn" title="Modifier" (click)="openEdit(q)">
+                    <span class="material-icons-round">edit</span>
+                  </button>
+                  <button type="button" class="icon-btn" title="Réutiliser pour la date sélectionnée" (click)="reuseForCurrentQuiz(q)">
+                    <span class="material-icons-round">content_copy</span>
+                  </button>
+                  <button type="button" class="icon-btn danger" title="Supprimer" (click)="deleteQuestion(q)">
+                    <span class="material-icons-round">delete</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-template>
+
         <div class="text-cream/50 text-sm font-playfair italic" *ngIf="allQuestions().length === 0">
-          Aucune question dans Firestore. (Le quiz utilise pour l’instant les 10 questions par défaut.)
+          Aucune question enregistrée pour le moment. (Le quiz utilise temporairement 10 questions par défaut.)
         </div>
         </div>
       </div>

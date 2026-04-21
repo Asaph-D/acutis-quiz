@@ -19,6 +19,11 @@ type FormState = {
 
 type ImportQuestionDraft = Omit<QuizQuestion, 'id' | 'createdAt'>;
 
+type QuestionGroup = {
+  quizDate: string;
+  items: QuizQuestion[];
+};
+
 @Component({
   standalone: true,
   selector: 'app-admin-page',
@@ -49,6 +54,49 @@ export class AdminPage {
         const hay = `${item.question} ${item.partLabel} ${item.quizDate ?? ''}`.toLowerCase();
         return hay.includes(q);
       });
+  });
+
+  readonly filteredGlobalGroups = computed((): QuestionGroup[] => {
+    if (this.showDailyOnly()) return [];
+    const list = this.filteredQuestions();
+
+    const byDate = new Map<string, QuizQuestion[]>();
+    for (const item of list) {
+      const d = item.quizDate ?? '—';
+      const arr = byDate.get(d);
+      if (arr) arr.push(item);
+      else byDate.set(d, [item]);
+    }
+
+    const toTs = (d: string) => {
+      // attend YYYY-MM-DD ; si invalide, renvoie NaN
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return Number.NaN;
+      return Date.parse(`${d}T00:00:00Z`);
+    };
+
+    const dateKeys = Array.from(byDate.keys()).sort((a, b) => {
+      // '—' à la fin.
+      if (a === '—' && b === '—') return 0;
+      if (a === '—') return 1;
+      if (b === '—') return -1;
+
+      const at = toTs(a);
+      const bt = toTs(b);
+      if (Number.isFinite(at) && Number.isFinite(bt)) return (bt as number) - (at as number); // récent d'abord
+
+      // fallback: tri descendant lexical
+      return b.localeCompare(a);
+    });
+
+    return dateKeys.map((quizDate) => {
+      const items = (byDate.get(quizDate) ?? []).slice().sort((a, b) => {
+        const ao = a.order ?? Number.POSITIVE_INFINITY;
+        const bo = b.order ?? Number.POSITIVE_INFINITY;
+        if (ao !== bo) return ao - bo;
+        return a.question.localeCompare(b.question);
+      });
+      return { quizDate, items };
+    });
   });
 
   readonly dailyCount = computed(() => {
@@ -172,7 +220,7 @@ export class AdminPage {
       this.savedFlash.set(true);
       window.setTimeout(() => this.savedFlash.set(false), 1200);
     } catch {
-      this.importError.set("Import impossible. Vérifie les Firestore Rules (écriture sur `quizzes/{date}/questions`).");
+      this.importError.set("Import impossible. Vérifie que tu es bien connecté en admin.");
     } finally {
       this.importing.set(false);
     }
@@ -357,7 +405,7 @@ export class AdminPage {
 
   async submit() {
     if (!this.isLoggedIn()) {
-      this.errorMsg.set("Connecte-toi en admin pour écrire dans Firestore.");
+      this.errorMsg.set("Connecte-toi en admin pour enregistrer des questions.");
       return;
     }
     if (this.saving()) return;
@@ -438,7 +486,7 @@ export class AdminPage {
       window.setTimeout(() => this.savedFlash.set(false), 1200);
     } catch {
       this.errorMsg.set(
-        "Impossible d'enregistrer. Vérifie les Firestore Rules (écriture sur `quizzes/[date]/questions`)."
+        "Impossible d'enregistrer pour le moment. Réessaie après reconnexion."
       );
     } finally {
       this.saving.set(false);
@@ -497,7 +545,7 @@ export class AdminPage {
         explanation: q.explanation
       });
     } catch {
-      this.errorMsg.set("Impossible de réutiliser. Vérifie les Firestore Rules.");
+      this.errorMsg.set("Impossible de réutiliser cette question pour le moment.");
     }
   }
 
@@ -512,7 +560,7 @@ export class AdminPage {
     try {
       await this.quizData.deleteQuestion(this.form().quizDate, q.id);
     } catch {
-      this.errorMsg.set("Impossible de supprimer. Vérifie les Firestore Rules.");
+      this.errorMsg.set("Impossible de supprimer pour le moment.");
     }
   }
 

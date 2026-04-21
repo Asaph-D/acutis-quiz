@@ -73,7 +73,7 @@ export class AnalyticsPage {
       const sub2 = this.quizData.getResults$(this.quizDate).subscribe({
         next: (rs) => this.results.set(rs),
         error: () => this.errorMsg.set(
-          "Impossible de lire les résultats. Connecte-toi en admin et vérifie les Firestore Rules (lecture sur `quizzes/{date}/results`)."
+          "Impossible de lire les résultats. Connecte-toi en admin."
         )
       });
       onCleanup(() => {

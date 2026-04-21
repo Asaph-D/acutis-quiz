@@ -19,7 +19,7 @@ import {
   where,
   getDoc
 } from '@angular/fire/firestore';
-import { Observable, catchError, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, from, map, of, switchMap } from 'rxjs';
 import { QuizQuestion, QuizResult } from '../models/quiz.models';
 
 @Injectable({ providedIn: 'root' })
@@ -68,20 +68,49 @@ export class QuizDataService {
     return this.inCtx(() => collectionData(q, { idField: 'id' })).pipe(
       map((items): QuizQuestion[] => (items as QuizQuestion[]).map((x) => ({ ...x, quizDate }))),
       map((items) => (items.length ? items : DEFAULT_QUESTIONS.map((x) => ({ ...x, quizDate })))),
-      catchError(() => of(DEFAULT_QUESTIONS.map((x) => ({ ...x, quizDate }))))
+      catchError((err) => {
+        const anyErr: any = err as any;
+        console.error('[QuizDataService.getQuestions$] Firestore error', {
+          quizDate,
+          code: anyErr?.code,
+          name: anyErr?.name,
+          message: anyErr?.message,
+          err: anyErr
+        });
+        return of(DEFAULT_QUESTIONS.map((x) => ({ ...x, quizDate })));
+      })
     );
   }
 
   /**
    * Toutes les questions, toutes les dates (pour l'admin/search).
-   * Requiert que chaque question contienne un champ `quizDate`.
+   * Déduit aussi `quizDate` depuis le chemin Firestore (robuste même si le champ manque).
    */
   getAllQuestions$(): Observable<QuizQuestion[]> {
     const ref = collectionGroup(this.firestore, 'questions');
     const q = query(ref, limit(500));
-    return this.inCtx(() => collectionData(q, { idField: 'id' })).pipe(
-      map((items): QuizQuestion[] => items as QuizQuestion[]),
-      catchError(() => of([]))
+    return from(this.inCtx(() => getDocs(q))).pipe(
+      map((snap) => {
+        return snap.docs.map((d) => {
+          const data = d.data() as QuizQuestion;
+          const parentQuizDate = d.ref.parent.parent?.id; // quizzes/{quizDate}/questions/{id}
+          return {
+            ...data,
+            id: d.id,
+            quizDate: data.quizDate ?? parentQuizDate
+          } satisfies QuizQuestion;
+        });
+      }),
+      catchError((err) => {
+        const anyErr: any = err as any;
+        console.error('[QuizDataService.getAllQuestions$] Firestore error', {
+          code: anyErr?.code,
+          name: anyErr?.name,
+          message: anyErr?.message,
+          err: anyErr
+        });
+        return of([]);
+      })
     );
   }
 
