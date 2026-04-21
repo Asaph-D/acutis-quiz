@@ -35,10 +35,20 @@
           <span class="material-icons-round text-gold/70">upload</span>
           <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Importer un quiz (texte brut)</span>
         </div>
-        <button type="button" class="btn-nav" (click)="openImport()" [disabled]="!isLoggedIn()">
-          <span class="material-icons-round">preview</span>
-          Prévisualiser
-        </button>
+        <div class="flex items-center gap-2">
+          <input
+            class="field-input !w-[160px] !py-2 !px-3 !text-xs"
+            type="date"
+            [ngModel]="form().quizDate"
+            (ngModelChange)="setQuizDate($event)"
+            aria-label="Date du quiz à importer"
+            title="Date du quiz à importer"
+          />
+          <button type="button" class="btn-nav" (click)="openImport()" [disabled]="!isLoggedIn()">
+            <span class="material-icons-round">preview</span>
+            Prévisualiser
+          </button>
+        </div>
       </div>
       <div class="text-cream/50 text-xs font-lato mb-3">
         Colle le quiz (format “1.”, “A)”, “Réponse : X)”) ou un JSON. La date importée = celle du champ “Date du quiz”.
@@ -277,6 +287,7 @@
     <div class="text-red-300 text-sm font-lato mb-3" *ngIf="importError()">{{ importError() }}</div>
 
     <ng-container *ngIf="!importError() && importPreview().length; else emptyImport">
+      <div class="import-loading-bar" *ngIf="importing()"></div>
       <div class="import-preview">
         <div class="import-track" [style.transform]="'translateX(-' + (importIndex() * 100) + '%)'">
           <div class="import-slide" *ngFor="let q of importPreview(); let i = index">
@@ -328,7 +339,9 @@
       <div class="flex justify-end mt-5 gap-2">
         <button type="button" class="btn-nav" (click)="closeImport()">Annuler</button>
         <button type="button" class="btn-nav" (click)="confirmImport()" [disabled]="importing() || !isLoggedIn()">
-          <span class="material-icons-round">publish</span>
+          <span class="material-icons-round" [class.spin]="importing()">
+            {{ importing() ? 'progress_activity' : 'publish' }}
+          </span>
           {{ importing() ? 'Import…' : 'Importer' }}
         </button>
       </div>
