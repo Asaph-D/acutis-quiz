@@ -127,17 +127,35 @@
 .question-item
   position: relative
 
+.scroll-fade
+  position: relative
+
+  &::after
+    content: ''
+    pointer-events: none
+    position: absolute
+    left: 0
+    right: 0
+    bottom: 0
+    height: 52px
+    // fade discret pour indiquer que ça continue
+    background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.55))
+
+.scroll-area
+  padding-bottom: 22px
+  scrollbar-width: none // Firefox
+  -ms-overflow-style: none // IE/Edge legacy
+
+  &::-webkit-scrollbar
+    width: 0
+    height: 0
+
 .item-actions
   display: flex
   align-items: center
   gap: 6px
-  opacity: 0
-  transform: translateY(-2px)
-  transition: all 0.2s ease
-
-  &.visible
-    opacity: 1
-    transform: translateY(0)
+  opacity: 1
+  transform: none
 
 .icon-btn
   width: 36px
@@ -190,6 +208,17 @@
 .modal-card
   width: 100%
   max-width: 720px
+
+.import-preview
+  overflow: hidden
+
+.import-track
+  display: flex
+  transition: transform 0.45s ease
+
+.import-slide
+  min-width: 100%
+  padding-right: 4px
 
 .btn-google
   background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06))

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { EnvironmentInjector, runInInjectionContext } from '@angular/core';
 import {
   addDoc,
+  DocumentReference,
   collection,
   collectionData,
   Firestore,
@@ -14,7 +15,8 @@ import {
   serverTimestamp,
   updateDoc,
   deleteDoc,
-  where
+  where,
+  getDoc
 } from '@angular/fire/firestore';
 import { Observable, catchError, map, of, switchMap } from 'rxjs';
 import { QuizQuestion, QuizResult } from '../models/quiz.models';
@@ -30,72 +32,85 @@ export class QuizDataService {
     return runInInjectionContext(this.injector, fn);
   }
 
-  getQuestions$(quizDate?: string): Observable<QuizQuestion[]> {
-    const ref = collection(this.firestore, 'questions');
+  private quizRef(quizDate: string) {
+    return doc(this.firestore, 'quizzes', quizDate);
+  }
 
-    const allQ = query(ref, orderBy('order', 'asc'), limit(10));
+  private questionsRef(quizDate: string) {
+    return collection(this.quizRef(quizDate), 'questions');
+  }
 
-    if (!quizDate) {
-      return this.inCtx(() => collectionData(allQ, { idField: 'id' })).pipe(
-        map((items): QuizQuestion[] => items as QuizQuestion[]),
-        map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS)),
-        catchError(() => of(DEFAULT_QUESTIONS))
-      );
-    }
+  private resultsRef(quizDate: string) {
+    return collection(this.quizRef(quizDate), 'results');
+  }
 
-    // On tente d'abord les questions du jour, sinon fallback à "toutes", sinon DEFAULT.
-    const dayQ = query(ref, where('quizDate', '==', quizDate), orderBy('order', 'asc'), limit(10));
-    const all$ = () =>
-      this.inCtx(() => collectionData(allQ, { idField: 'id' })).pipe(
-        map((items): QuizQuestion[] => items as QuizQuestion[]),
-        map((items: QuizQuestion[]) => (items.length ? items : DEFAULT_QUESTIONS)),
-        catchError(() => of(DEFAULT_QUESTIONS))
-      );
-
-    return this.inCtx(() => collectionData(dayQ, { idField: 'id' })).pipe(
-      map((items): QuizQuestion[] => items as QuizQuestion[]),
-      switchMap((dayItems: QuizQuestion[]) => {
-        if (dayItems.length) return of(dayItems);
-        return all$();
-      }),
-      catchError(() => all$())
+  private async ensureQuizDoc(quizDate: string) {
+    const ref = this.quizRef(quizDate);
+    // setDoc(merge) = idempotent: crée si absent, sinon ne casse rien
+    await this.inCtx(() =>
+      setDoc(
+        ref,
+        {
+          date: quizDate,
+          title: `Quiz du ${quizDate}`,
+          isActive: true,
+          locked: false,
+          createdAt: serverTimestamp()
+        },
+        { merge: true }
+      )
     );
   }
 
-  getResults$(): Observable<QuizResult[]> {
-    const ref = collection(this.firestore, 'results');
-    const q = query(ref, orderBy('createdAt', 'desc'));
-    return collectionData(q, { idField: 'id' }).pipe(map((items): QuizResult[] => items as QuizResult[]));
+  getQuestions$(quizDate: string): Observable<QuizQuestion[]> {
+    const q = query(this.questionsRef(quizDate), orderBy('order', 'asc'), limit(10));
+    return this.inCtx(() => collectionData(q, { idField: 'id' })).pipe(
+      map((items): QuizQuestion[] => (items as QuizQuestion[]).map((x) => ({ ...x, quizDate }))),
+      map((items) => (items.length ? items : DEFAULT_QUESTIONS.map((x) => ({ ...x, quizDate })))),
+      catchError(() => of(DEFAULT_QUESTIONS.map((x) => ({ ...x, quizDate }))))
+    );
   }
 
-  addQuestion(question: Omit<QuizQuestion, 'createdAt'>): Promise<void> {
-    const ref = collection(this.firestore, 'questions');
-    return addDoc(ref, { ...question, createdAt: serverTimestamp() }).then(() => undefined);
+  getResults$(quizDate: string): Observable<QuizResult[]> {
+    const q = query(this.resultsRef(quizDate), orderBy('createdAt', 'desc'));
+    return this.inCtx(() => collectionData(q, { idField: 'id' })).pipe(
+      map((items): QuizResult[] => (items as QuizResult[]).map((x) => ({ ...x, quizDate })))
+    );
   }
 
-  updateQuestion(id: string, patch: Partial<Omit<QuizQuestion, 'id'>>): Promise<void> {
-    const ref = doc(this.firestore, 'questions', id);
-    return updateDoc(ref, { ...patch }).then(() => undefined);
+  async addQuestion(quizDate: string, question: Omit<QuizQuestion, 'createdAt' | 'id' | 'quizDate'>): Promise<void> {
+    await this.ensureQuizDoc(quizDate);
+    const ref = this.questionsRef(quizDate);
+    await this.inCtx(() => addDoc(ref, { ...question, createdAt: serverTimestamp() })).then(() => undefined);
   }
 
-  deleteQuestion(id: string): Promise<void> {
-    const ref = doc(this.firestore, 'questions', id);
-    return deleteDoc(ref).then(() => undefined);
+  async updateQuestion(
+    quizDate: string,
+    id: string,
+    patch: Partial<Omit<QuizQuestion, 'id' | 'quizDate'>>
+  ): Promise<void> {
+    await this.ensureQuizDoc(quizDate);
+    const ref = doc(this.questionsRef(quizDate), id);
+    await this.inCtx(() => updateDoc(ref, { ...patch })).then(() => undefined);
   }
 
-  saveResult(result: Omit<QuizResult, 'createdAt'>): Promise<void> {
-    const ref = collection(this.firestore, 'results');
-    return addDoc(ref, { ...result, createdAt: serverTimestamp() }).then(() => undefined);
+  async deleteQuestion(quizDate: string, id: string): Promise<void> {
+    const ref = doc(this.questionsRef(quizDate), id);
+    await this.inCtx(() => deleteDoc(ref)).then(() => undefined);
+  }
+
+  async saveResult(
+    quizDate: string,
+    result: Omit<QuizResult, 'createdAt' | 'id' | 'quizDate'>
+  ): Promise<void> {
+    await this.ensureQuizDoc(quizDate);
+    const ref = this.resultsRef(quizDate);
+    await this.inCtx(() => addDoc(ref, { ...result, createdAt: serverTimestamp() })).then(() => undefined);
   }
 
   async displayNameExistsForDate(quizDate: string, displayName: string): Promise<boolean> {
-    const ref = collection(this.firestore, 'results');
-    const q = query(
-      ref,
-      where('quizDate', '==', quizDate),
-      where('displayName', '==', displayName),
-      limit(1)
-    );
+    const ref = this.resultsRef(quizDate);
+    const q = query(ref, where('displayName', '==', displayName.trim()), limit(1));
     const snap = await this.inCtx(() => getDocs(q));
     return !snap.empty;
   }

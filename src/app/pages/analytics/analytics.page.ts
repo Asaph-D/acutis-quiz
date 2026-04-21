@@ -17,6 +17,7 @@ export class AnalyticsPage {
   private readonly quizData = inject(QuizDataService);
   private readonly auth = inject(AuthService);
   readonly Math = Math;
+  private readonly quizDate = new Date().toISOString().slice(0, 10);
 
   readonly questions = signal<QuizQuestion[]>([]);
   readonly results = signal<QuizResult[]>([]);
@@ -65,14 +66,14 @@ export class AnalyticsPage {
 
   constructor() {
     effect((onCleanup) => {
-      const sub1 = this.quizData.getQuestions$().subscribe((qs) => this.questions.set(qs));
+      const sub1 = this.quizData.getQuestions$(this.quizDate).subscribe((qs) => this.questions.set(qs));
       const subAuth = this.auth.user$
         .pipe(map((u) => u?.email ?? null))
         .subscribe((email) => this.userEmail.set(email));
-      const sub2 = this.quizData.getResults$().subscribe({
+      const sub2 = this.quizData.getResults$(this.quizDate).subscribe({
         next: (rs) => this.results.set(rs),
         error: () => this.errorMsg.set(
-          "Impossible de lire les résultats. Connecte-toi en admin et vérifie les Firestore Rules (lecture sur `results`)."
+          "Impossible de lire les résultats. Connecte-toi en admin et vérifie les Firestore Rules (lecture sur `quizzes/{date}/results`)."
         )
       });
       onCleanup(() => {

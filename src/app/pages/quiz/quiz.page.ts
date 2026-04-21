@@ -300,9 +300,8 @@ export class QuizPage {
     if (this.saving()) return;
     this.saving.set(true);
     try {
-      await this.quizData.saveResult({
+      await this.quizData.saveResult(this.quizDate(), {
         displayName: this.displayName().trim(),
-        quizDate: this.quizDate(),
         total: this.totalCount(),
         score: this.score(),
         answers: this.answers()

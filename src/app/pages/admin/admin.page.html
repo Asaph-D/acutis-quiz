@@ -2,10 +2,10 @@
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
     <div>
       <h1 class="font-cinzel text-gold text-2xl md:text-3xl drop-shadow-lg">Admin</h1>
-      <p class="font-playfair text-cream/70 italic">Saisie des questions (Firestore: <span class="text-gold">questions</span>)</p>
+      <p class="font-playfair text-cream/70 italic">Saisie des questions (Firestore: <span class="text-gold">quizzes/[date]/questions</span>)</p>
     </div>
 
-    <div class="flex gap-2">
+    <div class="flex gap-2 items-center">
       <a class="btn-nav" routerLink="/quiz">
         <span class="material-icons-round">quiz</span>
         Quiz
@@ -14,19 +14,47 @@
         <span class="material-icons-round">insights</span>
         Analytics
       </a>
+      <button
+        *ngIf="isLoggedIn()"
+        type="button"
+        class="icon-btn"
+        title="Déconnexion"
+        aria-label="Déconnexion"
+        (click)="logout()"
+      >
+        <span class="material-icons-round">logout</span>
+      </button>
     </div>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="quiz-card p-5 lg:col-span-2 flex items-center justify-between" *ngIf="isLoggedIn()">
-      <div class="text-cream/70 font-lato text-sm flex items-center gap-2">
-        <span class="material-icons-round text-green-400">verified_user</span>
-        Connecté : <span class="text-gold font-bold">{{ userEmail() }}</span>
+    <!-- Import helper -->
+    <div class="quiz-card p-6 md:p-7 lg:col-span-2">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="material-icons-round text-gold/70">upload</span>
+          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Importer un quiz (texte brut)</span>
+        </div>
+        <button type="button" class="btn-nav" (click)="openImport()" [disabled]="!isLoggedIn()">
+          <span class="material-icons-round">preview</span>
+          Prévisualiser
+        </button>
       </div>
-      <button type="button" class="btn-nav" (click)="logout()">
-        <span class="material-icons-round">logout</span>
-        Déconnexion
-      </button>
+      <div class="text-cream/50 text-xs font-lato mb-3">
+        Colle le quiz (format “1.”, “A)”, “Réponse : X)”) ou un JSON. La date importée = celle du champ “Date du quiz”.
+        <span class="text-cream/40">
+          L’<span class="text-gold">explication</span> est supportée (optionnelle) : en JSON via <span class="text-gold">"explanation"</span> ; en texte brut, si absente on mettra “—”.
+        </span>
+      </div>
+      <textarea
+        class="field-input min-h-[170px]"
+        [ngModel]="importText()"
+        (ngModelChange)="importText.set($event)"
+        placeholder="Colle ici…"
+      ></textarea>
+      <div class="text-cream/40 text-xs font-lato mt-2">
+        Astuce : connecte-toi en admin pour importer.
+      </div>
     </div>
 
     <!-- Form -->
@@ -182,13 +210,12 @@
         </label>
       </div>
 
-      <div class="space-y-3 max-h-[620px] overflow-auto pr-1">
+      <div class="scroll-fade">
+        <div class="scroll-area space-y-3 max-h-[620px] overflow-auto">
         <div
           class="question-item p-4 rounded-xl border"
           *ngFor="let q of filteredQuestions()"
           style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
-          (mouseenter)="hoveredId.set(q.id ?? null)"
-          (mouseleave)="hoveredId.set(null)"
         >
           <div class="flex items-start gap-3">
             <div class="order-chip">{{ q.order }}</div>
@@ -207,7 +234,7 @@
               </div>
             </div>
 
-            <div class="item-actions" [class.visible]="hoveredId() === q.id">
+            <div class="item-actions">
               <button type="button" class="icon-btn" title="Modifier" (click)="openEdit(q)">
                 <span class="material-icons-round">edit</span>
               </button>
@@ -223,8 +250,95 @@
         <div class="text-cream/50 text-sm font-playfair italic" *ngIf="questions().length === 0">
           Aucune question dans Firestore. (Le quiz utilise pour l’instant les 10 questions par défaut.)
         </div>
+        </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" *ngIf="importModalOpen()">
+  <div class="modal-card quiz-card p-6 md:p-7">
+    <div class="flex items-center justify-between gap-4 mb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="material-icons-round text-gold/70">preview</span>
+          <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">Prévisualisation import</span>
+        </div>
+        <div class="text-cream/60 text-xs font-lato mt-1">
+          Date : <span class="text-gold font-bold">{{ form().quizDate }}</span>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" (click)="closeImport()" title="Fermer">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+
+    <div class="text-red-300 text-sm font-lato mb-3" *ngIf="importError()">{{ importError() }}</div>
+
+    <ng-container *ngIf="!importError() && importPreview().length; else emptyImport">
+      <div class="import-preview">
+        <div class="import-track" [style.transform]="'translateX(-' + (importIndex() * 100) + '%)'">
+          <div class="import-slide" *ngFor="let q of importPreview(); let i = index">
+            <div class="text-gold/60 text-xs font-lato tracking-widest uppercase flex items-center gap-2 mb-2">
+              <span class="material-icons-round text-gold/70 text-sm">{{ q.partIcon }}</span>
+              Q{{ q.order }} · {{ q.partLabel }}
+            </div>
+            <div class="text-cream/90 font-playfair text-sm mb-3">{{ q.question }}</div>
+            <div class="space-y-2">
+              <div class="p-3 rounded-xl border"
+                   *ngFor="let opt of q.options; let oi = index"
+                   [style.border-color]="oi === q.correctIndex ? 'rgba(34,197,94,0.6)' : 'rgba(201,150,58,0.18)'"
+                   [style.background]="oi === q.correctIndex ? 'rgba(34,197,94,0.10)' : 'rgba(255,255,255,0.04)'">
+                <span class="text-cream/80 text-sm font-lato">
+                  {{ ['A','B','C','D'][oi] }}) {{ opt }}
+                </span>
+              </div>
+            </div>
+            <div class="explanation-box mt-4" *ngIf="q.explanation">
+              <span class="material-icons-round text-gold/70 text-sm align-middle mr-1">lightbulb</span>
+              {{ q.explanation }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between mt-4">
+        <button type="button" class="btn-nav" (click)="slideImport(-1)" [disabled]="importIndex() === 0">
+          <span class="material-icons-round">chevron_left</span>
+          Précédent
+        </button>
+        <button type="button" class="btn-nav" (click)="slideImport(1)" [disabled]="importIndex() >= importPreview().length - 1">
+          Suivant
+          <span class="material-icons-round">chevron_right</span>
+        </button>
+      </div>
+
+      <div class="flex justify-center gap-2 mt-4 flex-wrap">
+        <button
+          type="button"
+          *ngFor="let _ of importPreview(); let i = index"
+          class="carousel-dot"
+          [class.active]="importIndex() === i"
+          (click)="goToImport(i)"
+          [attr.aria-label]="'Voir question ' + (i + 1)"
+        ></button>
+      </div>
+
+      <div class="flex justify-end mt-5 gap-2">
+        <button type="button" class="btn-nav" (click)="closeImport()">Annuler</button>
+        <button type="button" class="btn-nav" (click)="confirmImport()" [disabled]="importing() || !isLoggedIn()">
+          <span class="material-icons-round">publish</span>
+          {{ importing() ? 'Import…' : 'Importer' }}
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-template #emptyImport>
+      <div class="text-cream/60 text-sm font-lato">
+        Rien à prévisualiser.
+      </div>
+    </ng-template>
   </div>
 </div>
 
