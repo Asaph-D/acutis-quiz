@@ -209,6 +209,22 @@
   width: 100%
   max-width: 720px
 
+.modal-compact
+  max-height: calc(100vh - 36px)
+  overflow: auto
+
+  @media (max-width: 480px)
+    padding: 14px !important
+    border-radius: 18px
+
+.btn-mobile-icon
+  @media (max-width: 480px)
+    padding: 10px 12px
+    justify-content: center
+
+    .btn-text
+      display: none
+
 .import-preview
   overflow: hidden
 

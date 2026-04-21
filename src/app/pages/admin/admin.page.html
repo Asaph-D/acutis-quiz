@@ -46,7 +46,7 @@
           />
           <button type="button" class="btn-nav" (click)="openImport()" [disabled]="!isLoggedIn()">
             <span class="material-icons-round">preview</span>
-            Prévisualiser
+            <span class="btn-text">Prévisualiser</span>
           </button>
         </div>
       </div>
@@ -268,7 +268,7 @@
 
 <!-- Import modal -->
 <div class="modal-overlay" *ngIf="importModalOpen()">
-  <div class="modal-card quiz-card p-6 md:p-7">
+  <div class="modal-card modal-compact quiz-card p-6 md:p-7">
     <div class="flex items-center justify-between gap-4 mb-4">
       <div>
         <div class="flex items-center gap-2">
@@ -315,12 +315,12 @@
       </div>
 
       <div class="flex justify-between mt-4">
-        <button type="button" class="btn-nav" (click)="slideImport(-1)" [disabled]="importIndex() === 0">
+        <button type="button" class="btn-nav btn-mobile-icon" (click)="slideImport(-1)" [disabled]="importIndex() === 0">
           <span class="material-icons-round">chevron_left</span>
-          Précédent
+          <span class="btn-text">Précédent</span>
         </button>
-        <button type="button" class="btn-nav" (click)="slideImport(1)" [disabled]="importIndex() >= importPreview().length - 1">
-          Suivant
+        <button type="button" class="btn-nav btn-mobile-icon" (click)="slideImport(1)" [disabled]="importIndex() >= importPreview().length - 1">
+          <span class="btn-text">Suivant</span>
           <span class="material-icons-round">chevron_right</span>
         </button>
       </div>
@@ -337,12 +337,15 @@
       </div>
 
       <div class="flex justify-end mt-5 gap-2">
-        <button type="button" class="btn-nav" (click)="closeImport()">Annuler</button>
-        <button type="button" class="btn-nav" (click)="confirmImport()" [disabled]="importing() || !isLoggedIn()">
+        <button type="button" class="btn-nav btn-mobile-icon" (click)="closeImport()">
+          <span class="material-icons-round">close</span>
+          <span class="btn-text">Annuler</span>
+        </button>
+        <button type="button" class="btn-nav btn-mobile-icon" (click)="confirmImport()" [disabled]="importing() || !isLoggedIn()">
           <span class="material-icons-round" [class.spin]="importing()">
             {{ importing() ? 'progress_activity' : 'publish' }}
           </span>
-          {{ importing() ? 'Import…' : 'Importer' }}
+          <span class="btn-text">{{ importing() ? 'Import…' : 'Importer' }}</span>
         </button>
       </div>
     </ng-container>
@@ -357,7 +360,7 @@
 
 <!-- Auth Modal -->
 <div class="modal-overlay" *ngIf="authModalOpen() && !isLoggedIn()">
-  <div class="modal-card quiz-card p-6 md:p-7">
+  <div class="modal-card modal-compact quiz-card p-6 md:p-7">
     <div class="flex items-start justify-between gap-4 mb-3">
       <div>
         <div class="flex items-center gap-2">
