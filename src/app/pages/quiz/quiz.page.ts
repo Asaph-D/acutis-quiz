@@ -39,6 +39,7 @@ export class QuizPage {
   readonly quizDate = signal(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
   readonly resumeAvailable = signal(false);
   readonly resumeName = signal<string | null>(null);
+  readonly resumeDismissed = signal(false);
 
   readonly doneCount = computed(() => this.answered().filter(Boolean).length);
   readonly totalCount = computed(() => this.questions().length);
@@ -106,6 +107,7 @@ export class QuizPage {
         this.nameError.set(null);
         this.resumeAvailable.set(false);
         this.resumeName.set(null);
+        this.resumeDismissed.set(false);
 
         // propose de reprendre si une session locale existe
         const saved = this.readSavedSession();
@@ -115,6 +117,22 @@ export class QuizPage {
         }
       });
       onCleanup(() => sub.unsubscribe());
+    });
+
+    // Si l'utilisateur a cliqué "Recommencer" mais retape le même nom,
+    // on repropose automatiquement la reprise.
+    effect(() => {
+      if (!this.resumeDismissed()) return;
+      if (this.started() || this.showResults()) return;
+      const saved = this.readSavedSession();
+      if (!saved) return;
+      const typed = this.displayName().trim().toLowerCase();
+      if (!typed) return;
+      if (typed === saved.displayName.trim().toLowerCase()) {
+        this.resumeAvailable.set(true);
+        this.resumeName.set(saved.displayName);
+        this.resumeDismissed.set(false);
+      }
     });
 
     // persistance locale (uniquement quand le quiz est en cours)
@@ -187,13 +205,14 @@ export class QuizPage {
 
     this.resumeAvailable.set(false);
     this.resumeName.set(null);
+    this.resumeDismissed.set(false);
     this.nameError.set(null);
   }
 
-  discardSaved() {
-    this.clearProgress();
+  dismissSavedPrompt() {
     this.resumeAvailable.set(false);
     this.resumeName.set(null);
+    this.resumeDismissed.set(true);
   }
 
   letter(i: number) {
@@ -320,6 +339,15 @@ export class QuizPage {
     const name = this.displayName().trim();
     if (!name) return;
 
+    // Si une session locale existe pour ce nom, repropose la reprise.
+    const saved = this.readSavedSession();
+    if (saved && saved.displayName.trim().toLowerCase() === name.toLowerCase()) {
+      this.resumeAvailable.set(true);
+      this.resumeName.set(saved.displayName);
+      this.resumeDismissed.set(false);
+      return;
+    }
+
     // Réservation du nom sans lecture (compatible rules publiques)
     try {
       await this.quizData.reserveDisplayName(this.quizDate(), name);
@@ -343,7 +371,10 @@ export class QuizPage {
     this.nameTouched.set(false);
     this.started.set(false);
     this.nameError.set(null);
-    this.discardSaved();
+    this.clearProgress();
+    this.resumeAvailable.set(false);
+    this.resumeName.set(null);
+    this.resumeDismissed.set(false);
   }
 
   // Carrousel controls
