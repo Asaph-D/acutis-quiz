@@ -310,10 +310,21 @@ export class AdminPage {
     this.authError.set(null);
     try {
       await this.auth.loginWithGoogle();
-    } catch {
-      this.authError.set(
-        "Connexion Google impossible. Vérifie que le provider Google est activé dans Firebase Authentication."
-      );
+    } catch (err: any) {
+      const code = String(err?.code ?? '');
+      if (code === 'auth/unauthorized-domain') {
+        this.authError.set(
+          "Connexion Google refusée (domaine non autorisé). Dans Firebase Console → Authentication → Settings → Authorized domains, ajoute `localhost`."
+        );
+      } else if (code === 'auth/popup-blocked') {
+        this.authError.set(
+          "Popup bloquée par le navigateur. Autorise les popups pour localhost, ou le login passera en mode redirection."
+        );
+      } else {
+        this.authError.set(
+          "Connexion Google impossible. Vérifie que le provider Google est activé dans Firebase Authentication (et que `localhost` est autorisé)."
+        );
+      }
     }
   }
 

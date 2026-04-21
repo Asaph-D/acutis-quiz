@@ -3,8 +3,10 @@ import {
   Auth,
   GoogleAuthProvider,
   User,
+  getRedirectResult,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut
 } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
@@ -23,14 +25,40 @@ export class AuthService {
       );
       return { unsubscribe: () => unsub() };
     });
+
+    // Si on est revenu d'un login Google via redirect, finalise la session.
+    // (Best effort : on ignore les erreurs, l'UI affichera le statut auth via onAuthStateChanged.)
+    void this.initRedirectResult();
+  }
+
+  async initRedirectResult() {
+    try {
+      await getRedirectResult(this.auth);
+    } catch {
+      // silence
+    }
   }
 
   login(email: string, password: string) {
     return signInWithEmailAndPassword(this.auth, email, password);
   }
 
-  loginWithGoogle() {
-    return signInWithPopup(this.auth, this.googleProvider);
+  async loginWithGoogle() {
+    try {
+      return await signInWithPopup(this.auth, this.googleProvider);
+    } catch (err: any) {
+      const code = String(err?.code ?? '');
+      // Si la popup est bloquée/fermée, le redirect est plus fiable.
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request'
+      ) {
+        await signInWithRedirect(this.auth, this.googleProvider);
+        return null;
+      }
+      throw err;
+    }
   }
 
   logout() {
