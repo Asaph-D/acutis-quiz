@@ -81,10 +81,15 @@
   transition: all 0.4s cubic-bezier(.22,.68,0,1.2)
   cursor: pointer
 
-  &.done
+  &.correct
     background: linear-gradient(135deg, rgba(34,197,94,0.4), rgba(34,197,94,0.2))
     border-color: #22c55e
     color: #86efac
+
+  &.wrong
+    background: linear-gradient(135deg, rgba(239,68,68,0.4), rgba(239,68,68,0.2))
+    border-color: #ef4444
+    color: #fecaca
 
   &.active
     background: linear-gradient(135deg, rgba(201,150,58,0.4), rgba(201,150,58,0.2))

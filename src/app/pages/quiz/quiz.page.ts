@@ -19,6 +19,10 @@ export class QuizPage {
   private readonly quizData = inject(QuizDataService);
   private readonly route = inject(ActivatedRoute);
 
+  private readonly sfxCorrect = this.createSfx('assets/effects/correct.mp3', 0.7);
+  private readonly sfxIncorrect = this.createSfx('assets/effects/incorrect.mp3', 0.7);
+  private readonly sfxEndQuiz = this.createSfx('assets/effects/end-quiz.mp3', 0.8);
+
   readonly displayName = signal('');
   readonly nameTouched = signal(false);
   readonly started = signal(false);
@@ -196,6 +200,39 @@ export class QuizPage {
     return LETTERS[i] ?? '';
   }
 
+  isCorrectAt(i: number) {
+    const q = this.questions()[i];
+    const a = this.answers()[i] ?? null;
+    return a !== null && !!q && a === q.correctIndex;
+  }
+
+  isWrongAt(i: number) {
+    const q = this.questions()[i];
+    const a = this.answers()[i] ?? null;
+    return a !== null && !!q && a !== q.correctIndex;
+  }
+
+  private createSfx(src: string, volume: number) {
+    try {
+      const a = new Audio(src);
+      a.preload = 'auto';
+      a.volume = volume;
+      return a;
+    } catch {
+      return null;
+    }
+  }
+
+  private playSfx(audio: HTMLAudioElement | null) {
+    if (!audio) return;
+    try {
+      audio.currentTime = 0;
+      void audio.play();
+    } catch {
+      // silence (autoplay policy / erreur decode)
+    }
+  }
+
   canPrev() {
     return this.current() > 0;
   }
@@ -236,6 +273,7 @@ export class QuizPage {
 
     // auto-advance
     const isCorrect = this.questions()[idx]?.correctIndex === optIndex;
+    this.playSfx(isCorrect ? this.sfxCorrect : this.sfxIncorrect);
     const delay = isCorrect ? 900 : 1200;
     if (idx < this.totalCount() - 1) {
       window.setTimeout(() => {
@@ -256,6 +294,7 @@ export class QuizPage {
     if (!this.started()) return;
     this.showResults.set(true);
     this.resultIndex.set(0);
+    this.playSfx(this.sfxEndQuiz);
 
     // Sauvegarde (best effort) — si Firestore rules bloquent, ça n'empêche pas l'affichage.
     if (this.saving()) return;
