@@ -4,6 +4,7 @@ import {
   addDoc,
   DocumentReference,
   collection,
+  collectionGroup,
   collectionData,
   Firestore,
   getDocs,
@@ -71,6 +72,19 @@ export class QuizDataService {
     );
   }
 
+  /**
+   * Toutes les questions, toutes les dates (pour l'admin/search).
+   * Requiert que chaque question contienne un champ `quizDate`.
+   */
+  getAllQuestions$(): Observable<QuizQuestion[]> {
+    const ref = collectionGroup(this.firestore, 'questions');
+    const q = query(ref, limit(500));
+    return this.inCtx(() => collectionData(q, { idField: 'id' })).pipe(
+      map((items): QuizQuestion[] => items as QuizQuestion[]),
+      catchError(() => of([]))
+    );
+  }
+
   getResults$(quizDate: string): Observable<QuizResult[]> {
     const q = query(this.resultsRef(quizDate), orderBy('createdAt', 'desc'));
     return this.inCtx(() => collectionData(q, { idField: 'id' })).pipe(
@@ -81,13 +95,15 @@ export class QuizDataService {
   async addQuestion(quizDate: string, question: Omit<QuizQuestion, 'createdAt' | 'id' | 'quizDate'>): Promise<void> {
     await this.ensureQuizDoc(quizDate);
     const ref = this.questionsRef(quizDate);
-    await this.inCtx(() => addDoc(ref, { ...question, createdAt: serverTimestamp() })).then(() => undefined);
+    await this.inCtx(() =>
+      addDoc(ref, { ...question, quizDate, createdAt: serverTimestamp() })
+    ).then(() => undefined);
   }
 
   async updateQuestion(
     quizDate: string,
     id: string,
-    patch: Partial<Omit<QuizQuestion, 'id' | 'quizDate'>>
+    patch: Partial<Omit<QuizQuestion, 'id'>>
   ): Promise<void> {
     await this.ensureQuizDoc(quizDate);
     const ref = doc(this.questionsRef(quizDate), id);

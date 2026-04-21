@@ -193,7 +193,7 @@
           <span class="text-cream/50 text-xs font-lato">
             {{ filteredQuestions().length }} affichées
             <span class="text-gold/60">•</span>
-            {{ questions().length }} total
+            {{ allQuestions().length }} total
           </span>
         </div>
       </div>
@@ -257,7 +257,7 @@
             </div>
           </div>
         </div>
-        <div class="text-cream/50 text-sm font-playfair italic" *ngIf="questions().length === 0">
+        <div class="text-cream/50 text-sm font-playfair italic" *ngIf="allQuestions().length === 0">
           Aucune question dans Firestore. (Le quiz utilise pour l’instant les 10 questions par défaut.)
         </div>
         </div>

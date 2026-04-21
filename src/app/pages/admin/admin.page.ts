@@ -30,15 +30,20 @@ export class AdminPage {
   private readonly quizData = inject(QuizDataService);
   private readonly auth = inject(AuthService);
 
-  readonly questions = signal<QuizQuestion[]>([]);
+  readonly allQuestions = signal<QuizQuestion[]>([]);
+  readonly dailyQuestions = signal<QuizQuestion[]>([]);
   readonly search = signal('');
-  readonly showDailyOnly = signal(false);
+  readonly showDailyOnly = signal(true);
   readonly editingId = signal<string | null>(null);
+  readonly editingQuizDate = signal<string | null>(null);
   readonly isEditing = computed(() => !!this.editingId());
 
   readonly filteredQuestions = computed(() => {
     const q = this.search().trim().toLowerCase();
-    return this.questions()
+    const day = this.form().quizDate;
+    const dayOnly = this.showDailyOnly();
+    const base = dayOnly ? this.dailyQuestions() : this.allQuestions();
+    return base
       .filter((item) => {
         if (!q) return true;
         const hay = `${item.question} ${item.partLabel} ${item.quizDate ?? ''}`.toLowerCase();
@@ -46,7 +51,9 @@ export class AdminPage {
       });
   });
 
-  readonly dailyCount = computed(() => this.questions().length);
+  readonly dailyCount = computed(() => {
+    return this.dailyQuestions().length;
+  });
 
   readonly saving = signal(false);
   readonly savedFlash = signal(false);
@@ -67,7 +74,10 @@ export class AdminPage {
   readonly isLoggedIn = computed(() => !!this.userEmail());
   readonly authModalOpen = signal(true);
 
-  readonly nextOrder = computed(() => (this.questions().at(-1)?.order ?? 0) + 1);
+  readonly nextOrder = computed(() => {
+    const max = this.dailyQuestions().reduce((m, x) => Math.max(m, x.order ?? 0), 0);
+    return max + 1;
+  });
 
   readonly form = signal<FormState>({
     quizDate: new Date().toISOString().slice(0, 10),
@@ -81,7 +91,7 @@ export class AdminPage {
 
   constructor() {
     effect((onCleanup) => {
-      const sub = this.quizData.getQuestions$(this.form().quizDate).subscribe((qs) => this.questions.set(qs));
+      const sub = this.quizData.getAllQuestions$().subscribe((qs) => this.allQuestions.set(qs));
       const subAuth = this.auth.user$
         .pipe(map((u) => u?.email ?? null))
         .subscribe((email) => {
@@ -92,6 +102,13 @@ export class AdminPage {
         sub.unsubscribe();
         subAuth.unsubscribe();
       });
+    });
+
+    // questions du jour (ré-abonnement si la date change)
+    effect((onCleanup) => {
+      const day = this.form().quizDate;
+      const sub = this.quizData.getQuestions$(day).subscribe((qs) => this.dailyQuestions.set(qs));
+      onCleanup(() => sub.unsubscribe());
     });
   }
 
@@ -366,16 +383,32 @@ export class AdminPage {
     try {
       const editingId = this.editingId();
       if (editingId) {
-        await this.quizData.updateQuestion(f.quizDate, editingId, {
-          part: f.part,
-          partLabel: this.partLabel(f.part),
-          partIcon: this.partIcon(f.part),
-          order,
-          question: trimmedQuestion,
-          options: trimmedOptions,
-          correctIndex: f.correctIndex,
-          explanation: trimmedExplanation || '—'
-        });
+        const fromDate = this.editingQuizDate() ?? f.quizDate;
+        if (fromDate !== f.quizDate) {
+          await this.quizData.addQuestion(f.quizDate, {
+            part: f.part,
+            partLabel: this.partLabel(f.part),
+            partIcon: this.partIcon(f.part),
+            order,
+            question: trimmedQuestion,
+            options: trimmedOptions,
+            correctIndex: f.correctIndex,
+            explanation: trimmedExplanation || '—'
+          });
+          await this.quizData.deleteQuestion(fromDate, editingId);
+        } else {
+          await this.quizData.updateQuestion(f.quizDate, editingId, {
+            part: f.part,
+            partLabel: this.partLabel(f.part),
+            partIcon: this.partIcon(f.part),
+            order,
+            question: trimmedQuestion,
+            options: trimmedOptions,
+            correctIndex: f.correctIndex,
+            explanation: trimmedExplanation || '—',
+            quizDate: f.quizDate
+          });
+        }
       } else {
         await this.quizData.addQuestion(f.quizDate, {
           part: f.part,
@@ -399,12 +432,13 @@ export class AdminPage {
         explanation: ''
       });
       this.editingId.set(null);
+      this.editingQuizDate.set(null);
 
       this.savedFlash.set(true);
       window.setTimeout(() => this.savedFlash.set(false), 1200);
     } catch {
       this.errorMsg.set(
-        "Impossible d'enregistrer. Vérifie les Firestore Rules (écriture sur `questions`)."
+        "Impossible d'enregistrer. Vérifie les Firestore Rules (écriture sur `quizzes/[date]/questions`)."
       );
     } finally {
       this.saving.set(false);
@@ -414,6 +448,7 @@ export class AdminPage {
   openEdit(q: QuizQuestion) {
     if (!q.id) return;
     this.editingId.set(q.id);
+    this.editingQuizDate.set(q.quizDate ?? this.form().quizDate);
     this.form.set({
       quizDate: q.quizDate ?? this.form().quizDate,
       part: q.part,
@@ -430,6 +465,7 @@ export class AdminPage {
   cancelEdit() {
     const day = this.form().quizDate;
     this.editingId.set(null);
+    this.editingQuizDate.set(null);
     this.form.set({
       quizDate: day,
       part: 'carlo',
@@ -447,8 +483,7 @@ export class AdminPage {
       return;
     }
     const targetDate = this.form().quizDate;
-    const next = this.questions()
-      .reduce((m, x) => Math.max(m, x.order ?? 0), 0) + 1;
+    const next = this.dailyQuestions().reduce((m, x) => Math.max(m, x.order ?? 0), 0) + 1;
 
     try {
       await this.quizData.addQuestion(targetDate, {
