@@ -47,6 +47,7 @@ export class QuizPage {
 
   // Évangile du jour (AELF)
   readonly gospelModalOpen = signal(false);
+  readonly gospelModalClosing = signal(false);
   readonly gospelLoading = signal(false);
   readonly gospelError = signal<string | null>(null);
   readonly gospel = signal<AelfGospel | null>(null);
@@ -60,6 +61,12 @@ export class QuizPage {
   readonly totalCount = computed(() => this.questions().length);
   readonly progressPct = computed(() => (this.totalCount() ? (this.doneCount() / this.totalCount()) * 100 : 0));
   readonly currentQuestion = computed(() => this.questions()[this.current()]);
+  readonly gospelShortRef = computed(() => {
+    const g = this.gospel();
+    if (!g?.ref) return null;
+    // ex: "Jn 6, 22-29" => "Jn 6,22-29"
+    return g.ref.replace(/\s+/g, ' ').replace(/\s*,\s*/g, ',').trim();
+  });
 
   readonly score = computed(() => {
     const qs = this.questions();
@@ -96,6 +103,9 @@ export class QuizPage {
   // Carrousel de correction (fin)
   readonly resultIndex = signal(0);
   readonly resultTrackTransform = computed(() => `translateX(-${this.resultIndex() * 100}%)`);
+
+  private gospelCloseTimer: number | null = null;
+  private readonly gospelModalAnimMs = 180;
 
   constructor() {
     // Tag (date) pilotable par URL: /quiz?date=YYYY-MM-DD
@@ -184,11 +194,24 @@ export class QuizPage {
   }
 
   openGospel() {
+    if (this.gospelCloseTimer !== null) {
+      window.clearTimeout(this.gospelCloseTimer);
+      this.gospelCloseTimer = null;
+    }
+    this.gospelModalClosing.set(false);
     this.gospelModalOpen.set(true);
   }
 
   closeGospel() {
-    this.gospelModalOpen.set(false);
+    if (!this.gospelModalOpen()) return;
+    if (this.gospelModalClosing()) return;
+    this.gospelModalClosing.set(true);
+    if (this.gospelCloseTimer !== null) window.clearTimeout(this.gospelCloseTimer);
+    this.gospelCloseTimer = window.setTimeout(() => {
+      this.gospelModalOpen.set(false);
+      this.gospelModalClosing.set(false);
+      this.gospelCloseTimer = null;
+    }, this.gospelModalAnimMs);
   }
 
   private storageKey(quizDate: string) {
@@ -448,6 +471,17 @@ export class QuizPage {
     if (!q) return '—';
     if (a === null) return '— Sans réponse';
     return `${this.letter(a)}) ${q.options[a]}`;
+  }
+
+  partLabel(q: QuizQuestion | null | undefined) {
+    if (!q) return '';
+    if (q.part !== 'evangile') return q.partLabel ?? '';
+    const d = this.quizDate();
+    const ref = this.gospelShortRef();
+    // Si AELF est dispo: rend le libellé vraiment "journalier"
+    if (ref) return `Partie 2 — Évangile du ${d} (${ref})`;
+    // Fallback: libellé stocké (Firestore / défaut)
+    return q.partLabel ?? `Partie 2 — Évangile du ${d}`;
   }
 }
 

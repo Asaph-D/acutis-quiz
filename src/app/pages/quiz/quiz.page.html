@@ -13,7 +13,7 @@
           />
         </div>
       </div>
-      <div class="relative inline-block mb-4">
+      <!-- <div class="relative inline-block mb-4">
         <div class="relative w-20 h-20 mx-auto">
           <div class="halo-ring"></div>
           <img
@@ -23,7 +23,7 @@
             style="box-shadow: 0 0 24px rgba(201,150,58,0.5)"
           />
         </div>
-      </div>
+      </div> -->
       <h1 class="font-cinzel text-gold text-xl md:text-2xl leading-tight drop-shadow-lg">Quiz Sacré</h1>
       <p class="font-playfair text-cream/70 text-sm italic mt-1">
         St Carlo Acutis · Évangile du {{ quizDate() }}
@@ -103,38 +103,42 @@
     </div>
 
     <!-- Gospel modal -->
-    <div class="modal-overlay" *ngIf="gospelModalOpen()">
-      <div class="parchment-modal">
-        <div class="parchment-roll top"></div>
-        <div class="parchment-roll bottom"></div>
-        <div class="parchment-edge top"></div>
-        <div class="parchment-edge bottom"></div>
+    <div class="modal-overlay" *ngIf="gospelModalOpen()" (click)="closeGospel()" [class.closing]="gospelModalClosing()">
+      <div class="parchment-modal" (click)="$event.stopPropagation()" [class.closing]="gospelModalClosing()">
+        <button type="button" class="parchment-close" (click)="closeGospel()" title="Fermer" aria-label="Fermer">
+          <span class="material-icons-round">close</span>
+        </button>
 
-        <div class="parchment-header">
-          <div class="min-w-0">
-            <div class="text-gold/70 text-xs font-lato tracking-widest uppercase">Évangile du jour</div>
-            <div class="text-cream/80 text-xs font-lato mt-1 truncate">
-              {{ gospel()?.ref || quizDate() }}
+        <div class="parchment-fixed">
+          <div class="parchment-content">
+            <div class="parchment-meta">
+              <div class="parchment-meta-title">Évangile du jour</div>
+              <div class="parchment-meta-ref">{{ gospel()?.ref || quizDate() }}</div>
             </div>
+
+            <ng-container *ngIf="!gospelLoading() && gospel() as g">
+              <div class="parchment-title">{{ g.title }}</div>
+            </ng-container>
           </div>
-          <button type="button" class="icon-btn" (click)="closeGospel()" title="Fermer">
-            <span class="material-icons-round">close</span>
-          </button>
         </div>
 
-        <div class="parchment-body">
-          <div class="text-cream/50 text-xs font-lato" *ngIf="gospelLoading()">Chargement…</div>
-          <div class="text-red-300 text-xs font-lato" *ngIf="!gospelLoading() && gospelError()">{{ gospelError() }}</div>
+        <div class="parchment-scroll">
+          <div class="parchment-content">
+            <div class="parchment-status" *ngIf="gospelLoading()">Chargement…</div>
+            <div class="parchment-status error" *ngIf="!gospelLoading() && gospelError()">{{ gospelError() }}</div>
 
-          <ng-container *ngIf="!gospelLoading() && gospel() as g">
-            <div class="parchment-title">{{ g.title }}</div>
-            <div class="parchment-intro" *ngIf="g.intro">{{ g.intro }}</div>
-            <div class="parchment-text" [innerHTML]="gospelHtml()"></div>
-            <a class="parchment-link" [href]="g.sourceUrl" target="_blank" rel="noopener">
-              Ouvrir sur AELF
-            </a>
-          </ng-container>
+            <ng-container *ngIf="!gospelLoading() && gospel() as g">
+              <div class="parchment-intro" *ngIf="g.intro">{{ g.intro }}</div>
+              <div class="parchment-text" [innerHTML]="gospelHtml()"></div>
+            </ng-container>
+          </div>
         </div>
+
+        <ng-container *ngIf="!gospelLoading() && gospel() as g">
+          <a class="parchment-footer-link" [href]="g.sourceUrl" target="_blank" rel="noopener">
+            Ouvrir sur AELF
+          </a>
+        </ng-container>
       </div>
     </div>
 
@@ -174,7 +178,7 @@
 
       <div class="flex items-center gap-2 mb-4">
         <span class="material-icons-round text-gold/70 text-lg">{{ q.partIcon }}</span>
-        <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">{{ q.partLabel }}</span>
+        <span class="text-gold/60 text-xs font-lato tracking-widest uppercase">{{ partLabel(q) }}</span>
       </div>
 
       <div class="flex items-start gap-3 mb-6">

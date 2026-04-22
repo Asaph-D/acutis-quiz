@@ -120,3 +120,142 @@
     background: rgba(201,150,58,0.9)
     box-shadow: 0 0 10px rgba(201,150,58,0.5)
 
+.leaderboard-name-btn
+  background: transparent
+  border: 0
+  padding: 0
+  margin: 0
+  color: rgba(248,243,232,0.92)
+  font-family: 'Lato', sans-serif
+  font-weight: 800
+  font-size: 14px
+  text-align: left
+  cursor: pointer
+  text-decoration: underline
+  text-decoration-color: rgba(201,150,58,0.45)
+  text-underline-offset: 3px
+  transition: color 0.2s ease, text-decoration-color 0.2s ease
+
+  &:hover
+    color: rgba(232,195,106,0.98)
+    text-decoration-color: rgba(232,195,106,0.75)
+
+.leaderboard-rowline
+  display: flex
+  align-items: center
+  gap: 10px
+  min-width: 0
+
+.tie-preview
+  position: relative
+  flex: 1
+  min-width: 0
+  padding: 0
+  border: 0
+  background: transparent
+  backdrop-filter: none
+  color: rgba(248,243,232,0.80)
+  font-family: 'Lato', sans-serif
+  font-size: 12px
+  font-weight: 700
+  white-space: nowrap
+  overflow: hidden
+  text-overflow: ellipsis
+  cursor: pointer
+  // fondu à droite sans "couleur de backdrop" (hérite naturellement du fond)
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 42px), transparent 100%)
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 42px), transparent 100%)
+  -webkit-mask-repeat: no-repeat
+  mask-repeat: no-repeat
+  -webkit-mask-size: 100% 100%
+  mask-size: 100% 100%
+
+  &:hover
+    color: rgba(232,195,106,0.92)
+
+.tie-preview-label
+  opacity: 0.95
+
+.tie-preview .sep
+  opacity: 0.55
+
+
+.drawer-overlay
+  position: fixed
+  inset: 0
+  z-index: 60
+  background: rgba(0,0,0,0.55)
+  display: flex
+  justify-content: flex-end
+
+.right-drawer
+  width: min(420px, 92vw)
+  height: 100vh
+  background: linear-gradient(145deg, rgba(18,36,58,0.92) 0%, rgba(18,36,58,0.78) 100%)
+  border-left: 1px solid rgba(201,150,58,0.18)
+  box-shadow: -24px 0 60px rgba(0,0,0,0.55)
+  padding: 18px 16px
+  display: flex
+  flex-direction: column
+  animation: drawerIn 180ms cubic-bezier(.22,.68,0,1.2) forwards
+
+@keyframes drawerIn
+  from
+    transform: translateX(22px)
+    opacity: 0
+  to
+    transform: translateX(0)
+    opacity: 1
+
+.drawer-header
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  gap: 12px
+  margin-bottom: 10px
+
+.drawer-close
+  width: 38px
+  height: 38px
+  border-radius: 12px
+  border: 1px solid rgba(201,150,58,0.22)
+  background: rgba(255,255,255,0.06)
+  color: rgba(248,243,232,0.85)
+  cursor: pointer
+  display: flex
+  align-items: center
+  justify-content: center
+
+  &:hover
+    background: rgba(255,255,255,0.10)
+    border-color: rgba(201,150,58,0.45)
+
+.drawer-sub
+  margin-bottom: 12px
+
+.drawer-list
+  flex: 1
+  overflow: auto
+  padding-right: 4px
+  scrollbar-width: none
+
+  &::-webkit-scrollbar
+    width: 0
+    height: 0
+
+.drawer-item
+  padding: 10px 12px
+  border-radius: 14px
+  border: 1px solid rgba(201,150,58,0.14)
+  background: rgba(255,255,255,0.04)
+  margin-bottom: 10px
+
+.drawer-name
+  color: rgba(248,243,232,0.92)
+  font-family: 'Lato', sans-serif
+  font-weight: 800
+  font-size: 14px
+
+.drawer-meta
+  margin-top: 3px
+

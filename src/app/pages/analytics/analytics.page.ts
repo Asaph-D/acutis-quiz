@@ -45,6 +45,75 @@ export class AnalyticsPage {
       .slice(0, 10);
   });
 
+  readonly leaderboardGroups = computed(() => {
+    const sortedAll = [...this.results()].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+    // Top 10 + tous les ex æquo du 10e (pour qu'ils soient tous visibles)
+    let cutScore: number | null = null;
+    if (sortedAll.length > 10) {
+      cutScore = sortedAll[9]?.score ?? 0;
+    }
+    const visible = cutScore === null ? sortedAll : sortedAll.filter((r) => (r.score ?? 0) >= cutScore);
+
+    const groups: Array<{ score: number; entries: QuizResult[] }> = [];
+    for (const r of visible) {
+      const s = r.score ?? 0;
+      const last = groups[groups.length - 1];
+      if (last && last.score === s) last.entries.push(r);
+      else groups.push({ score: s, entries: [r] });
+    }
+
+    let higherCount = 0;
+    return groups.map((g) => {
+      const rank = higherCount + 1; // "competition ranking": 1, 1, 3... (mais groupé => 1, 3, 5...)
+      higherCount += g.entries.length;
+      return {
+        id: `rank:${rank}|score:${g.score}`,
+        rank,
+        score: g.score,
+        entries: g.entries,
+        isTie: g.entries.length > 1
+      };
+    });
+  });
+
+  nameSummary(entries: QuizResult[]) {
+    const first = entries[0]?.displayName?.trim() || 'Anonyme';
+    const extra = Math.max(0, entries.length - 1);
+    return extra > 0 ? `${first} +${extra}` : first;
+  }
+
+  tieNamesPreview(entries: QuizResult[], maxNames = 4) {
+    const rest = entries
+      .slice(1)
+      .map((e) => (e.displayName?.trim() || 'Anonyme'))
+      .filter(Boolean);
+    return {
+      names: rest.slice(0, Math.max(0, maxNames)),
+      hasMore: rest.length > maxNames
+    };
+  }
+
+  readonly drawerOpen = signal(false);
+  readonly drawerGroupId = signal<string | null>(null);
+
+  readonly drawerGroup = computed(() => {
+    const id = this.drawerGroupId();
+    if (!id) return null;
+    return this.leaderboardGroups().find((g) => g.id === id) ?? null;
+  });
+
+  openGroup(id: string) {
+    if (!this.isLoggedIn()) return;
+    this.drawerGroupId.set(id);
+    this.drawerOpen.set(true);
+  }
+
+  closeDrawer() {
+    this.drawerOpen.set(false);
+    this.drawerGroupId.set(null);
+  }
+
   readonly perQuestion = computed(() => {
     const qs = this.questions();
     const rs = this.results();

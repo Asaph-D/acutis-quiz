@@ -62,19 +62,41 @@
       <div class="space-y-3">
         <div
           class="p-4 rounded-xl border flex items-center justify-between gap-3"
-          *ngFor="let r of leaderboard(); let i = index"
+          *ngFor="let g of leaderboardGroups(); let i = index"
           style="background: rgba(255,255,255,0.04); border-color: rgba(201,150,58,0.18);"
         >
           <div class="flex items-center gap-3 min-w-0">
-            <div class="rank-chip">{{ i + 1 }}</div>
+            <div class="rank-chip">{{ g.rank }}</div>
             <div class="min-w-0">
-              <div class="text-cream/90 font-lato font-bold text-sm truncate">
-                {{ r.displayName || 'Anonyme' }}
+              <div class="text-cream/50 text-xs font-lato mb-1">
+                Résultat: {{ g.score }} / {{ g.entries[0].total }}
               </div>
-              <div class="text-cream/50 text-xs font-lato">Résultat: {{ r.score }} / {{ r.total }}</div>
+
+              <div class="leaderboard-rowline">
+                <button
+                  type="button"
+                  class="leaderboard-name-btn"
+                  (click)="openGroup(g.id)"
+                  [attr.aria-label]="'Voir la liste complète pour le rang ' + g.rank"
+                  [title]="nameSummary(g.entries)"
+                >
+                  {{ nameSummary(g.entries) }}
+                </button>
+
+                <ng-container *ngIf="g.isTie && tieNamesPreview(g.entries).names.length">
+                  <div class="tie-preview" (click)="openGroup(g.id)" role="button" tabindex="0"
+                       [attr.aria-label]="'Voir tous les ex æquo pour le rang ' + g.rank"
+                       [title]="(tieNamesPreview(g.entries).names.join(' | ') + (tieNamesPreview(g.entries).hasMore ? ' | …' : ''))">
+                    <span class="tie-preview-label" *ngFor="let n of tieNamesPreview(g.entries).names; let last = last">
+                      {{ n }}<span class="sep" *ngIf="!last"> | </span>
+                    </span>
+                    <span class="sep" *ngIf="tieNamesPreview(g.entries).hasMore"> | …</span>
+                  </div>
+                </ng-container>
+              </div>
             </div>
           </div>
-          <div class="score-chip">{{ r.score }}</div>
+          <div class="score-chip">{{ g.score }}</div>
         </div>
 
         <div class="text-cream/50 text-sm font-playfair italic" *ngIf="participantCount() === 0">
@@ -149,6 +171,36 @@
         ></button>
       </div>
     </div>
+  </div>
+
+  <!-- Drawer (détails ex æquo) -->
+  <div class="drawer-overlay" *ngIf="drawerOpen()" (click)="closeDrawer()">
+    <aside class="right-drawer" (click)="$event.stopPropagation()">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <div class="text-gold/70 text-xs font-lato tracking-widest uppercase">Détails du classement</div>
+          <div class="text-cream/90 font-lato font-bold text-base">
+            Rang {{ drawerGroup()?.rank }} · Score {{ drawerGroup()?.score }}
+          </div>
+        </div>
+        <button type="button" class="drawer-close" (click)="closeDrawer()" aria-label="Fermer" title="Fermer">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+
+      <div class="drawer-sub">
+        <span class="text-cream/50 text-xs font-lato">
+          {{ (drawerGroup()?.entries?.length || 0) }} participant(s)
+        </span>
+      </div>
+
+      <div class="drawer-list">
+        <div class="drawer-item" *ngFor="let r of (drawerGroup()?.entries || [])">
+          <div class="drawer-name">{{ r.displayName || 'Anonyme' }}</div>
+          <div class="drawer-meta text-cream/50 text-xs font-lato">Score: {{ r.score }} / {{ r.total }}</div>
+        </div>
+      </div>
+    </aside>
   </div>
 </div>
 
