@@ -108,6 +108,9 @@ export class QuizPage {
   private readonly gospelModalAnimMs = 180;
 
   constructor() {
+    // Nettoyage: supprime les sessions locales d'autres jours pour éviter la confusion
+    this.cleanupOldProgress();
+
     // Tag (date) pilotable par URL: /quiz?date=YYYY-MM-DD
     effect((onCleanup) => {
       const sub = this.route.queryParamMap.subscribe((pm) => {
@@ -216,6 +219,26 @@ export class QuizPage {
 
   private storageKey(quizDate: string) {
     return `acutis-quiz:progress:${quizDate}`;
+  }
+
+  private cleanupOldProgress() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const keepKey = this.storageKey(today);
+      const prefix = 'acutis-quiz:progress:';
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k) keys.push(k);
+      }
+      for (const k of keys) {
+        if (!k.startsWith(prefix)) continue;
+        if (k === keepKey) continue;
+        localStorage.removeItem(k);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private readSavedSession(): SavedSession | null {

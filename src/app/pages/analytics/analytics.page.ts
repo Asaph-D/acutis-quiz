@@ -46,7 +46,12 @@ export class AnalyticsPage {
   });
 
   readonly leaderboardGroups = computed(() => {
-    const sortedAll = [...this.results()].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const sortedAll = [...this.results()].sort((a, b) => {
+      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      // ex æquo: du premier à avoir ce score au dernier
+      return this.createdAtMillis(a.createdAt) - this.createdAtMillis(b.createdAt);
+    });
 
     // Top 10 + tous les ex æquo du 10e (pour qu'ils soient tous visibles)
     let cutScore: number | null = null;
@@ -77,10 +82,35 @@ export class AnalyticsPage {
     });
   });
 
+  private createdAtMillis(v: unknown): number {
+    if (!v) return 0;
+    const anyV: any = v as any;
+    if (typeof anyV?.toMillis === 'function') return Number(anyV.toMillis()) || 0;
+    // Firestore Timestamp-like
+    if (typeof anyV?.seconds === 'number') return anyV.seconds * 1000 + Math.floor((anyV.nanoseconds ?? 0) / 1e6);
+    // Date or ISO string fallback
+    if (anyV instanceof Date) return anyV.getTime();
+    if (typeof anyV === 'string') {
+      const t = Date.parse(anyV);
+      return Number.isFinite(t) ? t : 0;
+    }
+    return 0;
+  }
+
   nameSummary(entries: QuizResult[]) {
     const first = entries[0]?.displayName?.trim() || 'Anonyme';
     const extra = Math.max(0, entries.length - 1);
     return extra > 0 ? `${first} +${extra}` : first;
+  }
+
+  nameSummaryParts(entries: QuizResult[]) {
+    const first = entries[0]?.displayName?.trim() || 'Anonyme';
+    const extra = Math.max(0, entries.length - 1);
+    return {
+      first,
+      extra,
+      extraLabel: extra > 0 ? `+${extra}` : ''
+    };
   }
 
   tieNamesPreview(entries: QuizResult[], maxNames = 4) {

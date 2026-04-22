@@ -73,15 +73,12 @@
               </div>
 
               <div class="leaderboard-rowline">
-                <button
-                  type="button"
-                  class="leaderboard-name-btn"
-                  (click)="openGroup(g.id)"
-                  [attr.aria-label]="'Voir la liste complète pour le rang ' + g.rank"
-                  [title]="nameSummary(g.entries)"
-                >
-                  {{ nameSummary(g.entries) }}
-                </button>
+                <span class="leaderboard-name" [title]="nameSummary(g.entries)">
+                  {{ nameSummaryParts(g.entries).first }}
+                  <span *ngIf="nameSummaryParts(g.entries).extra" class="text-gold/70">
+                    {{ ' ' + nameSummaryParts(g.entries).extraLabel }}
+                  </span>
+                </span>
 
                 <ng-container *ngIf="g.isTie && tieNamesPreview(g.entries).names.length">
                   <div class="tie-preview" (click)="openGroup(g.id)" role="button" tabindex="0"
