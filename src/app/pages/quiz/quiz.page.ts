@@ -2,8 +2,10 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { QuizDataService } from '../../services/quiz-data.service';
 import { QuizQuestion } from '../../models/quiz.models';
+import { AelfService, AelfGospel } from '../../services/aelf.service';
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
 const LS_VERSION = 1;
@@ -18,6 +20,8 @@ const LS_VERSION = 1;
 export class QuizPage {
   private readonly quizData = inject(QuizDataService);
   private readonly route = inject(ActivatedRoute);
+  private readonly aelf = inject(AelfService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   private readonly sfxCorrect = this.createSfx('assets/effects/correct.mp3', 0.7);
   private readonly sfxIncorrect = this.createSfx('assets/effects/incorrect.mp3', 0.7);
@@ -40,6 +44,17 @@ export class QuizPage {
   readonly resumeAvailable = signal(false);
   readonly resumeName = signal<string | null>(null);
   readonly resumeDismissed = signal(false);
+
+  // Évangile du jour (AELF)
+  readonly gospelModalOpen = signal(false);
+  readonly gospelLoading = signal(false);
+  readonly gospelError = signal<string | null>(null);
+  readonly gospel = signal<AelfGospel | null>(null);
+  readonly gospelHtml = computed<SafeHtml | null>(() => {
+    const g = this.gospel();
+    if (!g?.html) return null;
+    return this.sanitizer.bypassSecurityTrustHtml(g.html);
+  });
 
   readonly doneCount = computed(() => this.answered().filter(Boolean).length);
   readonly totalCount = computed(() => this.questions().length);
@@ -119,6 +134,32 @@ export class QuizPage {
       onCleanup(() => sub.unsubscribe());
     });
 
+    // Charge l'évangile du jour (pour révision avant de commencer)
+    effect((onCleanup) => {
+      const date = this.quizDate();
+      let alive = true;
+      this.gospelLoading.set(true);
+      this.gospelError.set(null);
+      const sub = this.aelf.getGospel$(date, 'romain').subscribe({
+        next: (g) => {
+          if (!alive) return;
+          this.gospel.set(g);
+          this.gospelLoading.set(false);
+          if (!g) this.gospelError.set("Évangile indisponible pour cette date.");
+        },
+        error: () => {
+          if (!alive) return;
+          this.gospel.set(null);
+          this.gospelLoading.set(false);
+          this.gospelError.set("Impossible de charger l’Évangile du jour.");
+        }
+      });
+      onCleanup(() => {
+        alive = false;
+        sub.unsubscribe();
+      });
+    });
+
     // Si l'utilisateur a cliqué "Recommencer" mais retape le même nom,
     // on repropose automatiquement la reprise.
     effect(() => {
@@ -140,6 +181,14 @@ export class QuizPage {
       if (!this.started() || this.showResults()) return;
       this.persistProgress();
     });
+  }
+
+  openGospel() {
+    this.gospelModalOpen.set(true);
+  }
+
+  closeGospel() {
+    this.gospelModalOpen.set(false);
   }
 
   private storageKey(quizDate: string) {

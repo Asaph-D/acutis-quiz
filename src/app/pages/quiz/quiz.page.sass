@@ -180,6 +180,201 @@
     width: 100%
     justify-content: center
 
+.gospel-btn
+  background: linear-gradient(135deg, rgba(201,150,58,0.22), rgba(201,150,58,0.08))
+  border: 1.5px solid rgba(201,150,58,0.35)
+  color: var(--gold-light)
+  border-radius: 999px
+  padding: 8px 12px
+  cursor: pointer
+  transition: all 0.25s ease
+  font-family: 'Lato', sans-serif
+  font-weight: 800
+  font-size: 12px
+  display: flex
+  align-items: center
+  gap: 8px
+  white-space: nowrap
+
+  &:hover:not(:disabled)
+    border-color: rgba(201,150,58,0.75)
+    transform: translateY(-1px)
+
+  &:disabled
+    opacity: 0.35
+    cursor: not-allowed
+    transform: none
+
+.modal-overlay
+  position: fixed
+  inset: 0
+  z-index: 50
+  display: flex
+  align-items: center
+  justify-content: center
+  padding: 18px
+  background: rgba(0, 0, 0, 0.55)
+  backdrop-filter: blur(8px)
+
+.parchment-modal
+  width: min(720px, 92vw)
+  max-height: min(82vh, 760px)
+  border-radius: 22px
+  overflow: hidden
+  box-shadow: 0 32px 80px rgba(0,0,0,0.65)
+  background: linear-gradient(180deg, rgba(255,248,232,0.98) 0%, rgba(244,228,193,0.96) 55%, rgba(224,204,160,0.94) 100%)
+  position: relative
+  padding-top: 22px
+  padding-bottom: 22px
+
+  &:before
+    content: ''
+    position: absolute
+    inset: 0
+    // “texture” de parchemin (sans image)
+    background: radial-gradient(circle at 20% 10%, rgba(139,101,32,0.16), transparent 46%), radial-gradient(circle at 78% 40%, rgba(26,58,92,0.07), transparent 56%), repeating-linear-gradient(0deg, rgba(0,0,0,0.018) 0px, rgba(0,0,0,0.018) 1px, transparent 1px, transparent 4px)
+    pointer-events: none
+
+  &:after
+    content: ''
+    position: absolute
+    inset: 0
+    border-radius: 22px
+    // vignette/grain vintage (au-dessus du papier)
+    background: radial-gradient(circle at 50% 35%, rgba(255,255,255,0.10), transparent 55%), radial-gradient(circle at 50% 70%, transparent 52%, rgba(0,0,0,0.08) 100%), repeating-radial-gradient(circle at 12% 18%, rgba(0,0,0,0.015) 0 1px, transparent 1px 7px)
+    pointer-events: none
+
+  // Rouleaux haut/bas (effet “parchemin roulé”)
+  // Chaque rouleau est un cylindre avec reflets + ombre.
+  // Note: z-index au-dessus de la texture, sous le contenu.
+  &::marker
+    content: ''
+
+  & > .parchment-header,
+  & > .parchment-body
+    position: relative
+    z-index: 2
+
+  .parchment-roll
+    position: absolute
+    left: 18px
+    right: 18px
+    height: 40px
+    border-radius: 999px
+    z-index: 1
+    background: linear-gradient(180deg,
+      rgba(120, 78, 18, 0.92) 0%,
+      rgba(199, 150, 58, 0.85) 22%,
+      rgba(255, 236, 190, 0.65) 50%,
+      rgba(199, 150, 58, 0.88) 78%,
+      rgba(92, 57, 14, 0.92) 100%
+    )
+    box-shadow: 0 10px 26px rgba(0,0,0,0.30)
+
+    &:before
+      content: ''
+      position: absolute
+      inset: 3px
+      border-radius: 999px
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.30), transparent 55%), radial-gradient(circle at 70% 65%, rgba(0,0,0,0.16), transparent 60%)
+      opacity: 0.9
+
+  .parchment-roll.top
+    top: 8px
+    transform: rotate(-1.6deg)
+    transform-origin: left center
+
+  .parchment-roll.bottom
+    bottom: 8px
+    transform: rotate(1.4deg)
+    transform-origin: right center
+
+  // “bords brûlés” doux sur le papier
+  .parchment-edge
+    position: absolute
+    left: 0
+    right: 0
+    height: 34px
+    z-index: 1
+    pointer-events: none
+
+  .parchment-edge.top
+    top: 30px
+    background: linear-gradient(180deg, rgba(115,80,20,0.20), transparent 75%)
+
+  .parchment-edge.bottom
+    bottom: 30px
+    background: linear-gradient(0deg, rgba(115,80,20,0.20), transparent 75%)
+
+.parchment-header
+  position: relative
+  z-index: 2
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 12px
+  padding: 14px 14px
+  border-bottom: none
+  margin-top: 8px
+
+.parchment-body
+  position: relative
+  z-index: 2
+  padding: 16px 16px 18px 16px
+  overflow: auto
+  max-height: calc(min(82vh, 760px) - 58px - 16px)
+  scrollbar-width: none
+
+  &::-webkit-scrollbar
+    width: 0
+    height: 0
+
+  // centre le texte au milieu du parchemin
+  display: flex
+  justify-content: center
+
+  > *
+    width: 100%
+    max-width: 560px
+
+.parchment-title
+  font-family: 'Cinzel Decorative', serif
+  font-weight: 800
+  color: rgba(44,26,12,0.92)
+  font-size: 18px
+  line-height: 1.25
+  margin-bottom: 10px
+
+.parchment-intro
+  color: rgba(44,26,12,0.70)
+  font-family: 'Lato', sans-serif
+  font-size: 12px
+  margin-bottom: 12px
+
+.parchment-text
+  color: rgba(44,26,12,0.88)
+  font-family: 'Playfair Display', serif
+  font-size: 14px
+
+  :global(p)
+    margin: 0 0 12px 0
+    line-height: 1.65
+  :global(br)
+    content: ''
+  :global(em)
+    opacity: 0.95
+  :global(strong)
+    color: rgba(44,26,12,0.92)
+
+.parchment-link
+  display: inline-block
+  margin-top: 12px
+  font-family: 'Lato', sans-serif
+  font-size: 12px
+  font-weight: 800
+  color: rgba(44,26,12,0.82)
+  text-decoration: underline
+
 .score-ring
   position: relative
   width: 140px
