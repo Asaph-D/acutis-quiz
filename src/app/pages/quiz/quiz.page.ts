@@ -496,6 +496,12 @@ export class QuizPage {
     return `${this.letter(a)}) ${q.options[a]}`;
   }
 
+  correctLabel(i: number) {
+    const q = this.questions()[i];
+    if (!q) return '—';
+    return `${this.letter(q.correctIndex)}) ${q.options[q.correctIndex]}`;
+  }
+
   partLabel(q: QuizQuestion | null | undefined) {
     if (!q) return '';
     if (q.part !== 'evangile') return q.partLabel ?? '';

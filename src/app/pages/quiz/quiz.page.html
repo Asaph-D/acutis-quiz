@@ -299,7 +299,10 @@
 
                   <div class="text-xs text-cream/60 font-lato">
                     <ng-container *ngIf="isCorrect(i); else wrongTpl">Bonne réponse</ng-container>
-                    <ng-template #wrongTpl>Ta réponse : {{ chosenLabel(i) }}</ng-template>
+                    <ng-template #wrongTpl>
+                      Ta réponse : {{ chosenLabel(i) }}
+                      <span class="text-gold/70"> · La bonne réponse est "{{ correctLabel(i) }}"</span>
+                    </ng-template>
                   </div>
 
                   <div class="explanation-box mt-3">{{ q.explanation }}</div>
